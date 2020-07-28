@@ -1,4 +1,7 @@
-This is Python version 3.10.0 alpha 0
+This is Python version 2.7.18.1 created by ActiveState Software
+===============================================================
+As part of a service to our customers, we provide EOL support for Python 2.7 for those organizations who are unable to switch to Python 3. This repo contains patched releases of 2.7.18 to address security vulnerabilities and other critical bugs. Currently, the first release is 2.7.18.1 which addresses a CVE CVE-2020-8492: https://nvd.nist.gov/vuln/detail/CVE-2020-8492 
+
 =====================================
 
 .. image:: https://travis-ci.org/python/cpython.svg?branch=master
