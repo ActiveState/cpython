@@ -1360,19 +1360,16 @@ class WriteTest(WriteTestBase, unittest.TestCase):
             with open(source_file,'w') as f:
                 f.write('something\n')
             os.symlink(source_file, target_file)
-            tar = tarfile.open(temparchive,'w')
-            tar.add(source_file)
-            tar.add(target_file)
-            tar.close()
+            with tarfile.open(temparchive, 'w') as tar:
+                tar.add(source_file, arcname="source")
+                tar.add(target_file, arcname="symlink")
             # Let's extract it to the location which contains the symlink
-            tar = tarfile.open(temparchive,'r')
-            # this should not raise OSError: [Errno 17] File exists
-            try:
-                tar.extractall(path=tempdir)
-            except OSError:
-                self.fail("extractall failed with symlinked files")
-            finally:
-                tar.close()
+            with tarfile.open(temparchive, errorlevel=2) as tar:
+                # this should not raise OSError: [Errno 17] File exists
+                try:
+                    tar.extractall(path=tempdir)
+                except OSError:
+                    self.fail("extractall failed with symlinked files")
         finally:
             support.unlink(temparchive)
             support.rmtree(tempdir)
