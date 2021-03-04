@@ -395,7 +395,8 @@ def setcopyright():
     else:
         builtins.credits = _sitebuiltins._Printer("credits", """\
     Thanks to CWI, CNRI, BeOpen.com, Zope Corporation and a cast of thousands
-    for supporting Python development.  See www.python.org for more information.""")
+    for supporting Python development.  See www.python.org for more information.
+    Binary build provided by ActiveState http://www.ActiveState.com""")
     files, dirs = [], []
     # Not all modules are required to have a __file__ attribute.  See
     # PEP 420 for more details.

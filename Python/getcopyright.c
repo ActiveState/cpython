@@ -14,7 +14,9 @@ Copyright (c) 1995-2001 Corporation for National Research Initiatives.\n\
 All Rights Reserved.\n\
 \n\
 Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.\n\
-All Rights Reserved.";
+All Rights Reserved.\n\
+\n\
+Binary build provided by ActiveState http://www.ActiveState.com";
 
 const char *
 Py_GetCopyright(void)
