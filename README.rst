@@ -259,6 +259,8 @@ rights reserved.
 
 Copyright (c) 1991-1995 Stichting Mathematisch Centrum.  All rights reserved.
 
+Binary build provided by ActiveState http://www.ActiveState.com
+
 See the file "LICENSE" for information on the history of this software, terms &
 conditions for usage, and a DISCLAIMER OF ALL WARRANTIES.
 

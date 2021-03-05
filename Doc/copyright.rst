@@ -13,6 +13,8 @@ reserved.
 
 Copyright © 1991-1995 Stichting Mathematisch Centrum. All rights reserved.
 
+Binary build provided by ActiveState http://www.ActiveState.com
+
 -------
 
 See :ref:`history-and-license` for complete license and permissions information.

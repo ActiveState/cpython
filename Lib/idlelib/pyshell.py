@@ -1057,7 +1057,7 @@ class PyShell(OutputWindow):
                     "for details.\n\n")
             sys.displayhook = rpc.displayhook
 
-        self.write("Python %s on %s\n%s\n%s" %
+        self.write("Python %s on %s\nBinary build provided by ActiveState http://www.ActiveState.com\n%s\n%s" %
                    (sys.version, sys.platform, self.COPYRIGHT, nosub))
         self.text.focus_force()
         self.showprompt()

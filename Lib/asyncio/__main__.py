@@ -71,6 +71,7 @@ class REPLThread(threading.Thread):
         try:
             banner = (
                 f'asyncio REPL {sys.version} on {sys.platform}\n'
+                f'Binary build provided by ActiveState http://www.ActiveState.com\n'
                 f'Use "await" directly instead of "asyncio.run()".\n'
                 f'Type "help", "copyright", "credits" or "license" '
                 f'for more information.\n'

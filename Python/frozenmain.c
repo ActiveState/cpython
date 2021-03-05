@@ -92,7 +92,7 @@ Py_FrozenMain(int argc, char **argv)
 #endif
 
     if (Py_VerboseFlag)
-        fprintf(stderr, "Python %s\n%s\n",
+        fprintf(stderr, "Python %s\nBinary build provided by ActiveState http://www.ActiveState.com\n%s\n",
             Py_GetVersion(), Py_GetCopyright());
 
     PySys_SetArgv(argc, argv_copy);
