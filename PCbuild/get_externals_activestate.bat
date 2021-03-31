@@ -11,7 +11,7 @@ rem *** IMPORTANT ***
 rem If updating bzip2, db, nasm, openssl, or sqlite you must also edit their directory names in python.props.
 rem If updating tcl/tk/tix you must also update their versions/directories in tcltk.props.
 
-set default_OpenSSL=1.0.2t
+set default_OpenSSL=1.1.1j
 if "%OpenSSL_version%"=="" set OpenSSL_version=%default_OpenSSL%
 
 set libraries=
@@ -42,13 +42,36 @@ for %%e in (%libraries%) do (
     )
 )
 
+set binaries=
+if NOT "%IncludeSSL%"=="false" set binaries=%binaries% openssl-bin-%OpenSSL_version%
+
+for %%b in (%binaries%) do (
+    if exist %%b (
+        echo.%%b already exists, skipping.
+    ) else (
+        echo.Fetching %%b...
+        call lwp-download https://s3.amazonaws.com/camel-sources/src/vendor-sources/python-core/%%b-pysvn.tar.gz ..\externals\%%b.tar.gz
+        cd ..\externals
+        mkdir %%b
+        call tar zxf %%b.tar.gz -C %%b --strip-components=1
+        del %%b.tar.gz
+        cd ..\PCbuild
+    )
+)
+
 cd ..\externals
 if NOT "%OpenSSL_version%"=="%default_OpenSSL%" (
     if exist openssl-%OpenSSL_version% (
         move openssl-%OpenSSL_version% openssl-%default_OpenSSL%
     )
+    if exist openssl-bin-%OpenSSL_version% (
+        move openssl-bin-%OpenSSL_version% openssl-bin-%default_OpenSSL%
+    )
 )
 cd ..\PCbuild
+
+
+echo Finished.
 
 goto end
 

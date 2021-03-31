@@ -35,9 +35,9 @@
     <sqlite3Dir>$(ExternalsDir)sqlite-3.34.1.0\</sqlite3Dir>
     <bz2Dir>$(ExternalsDir)bzip2-1.0.8\</bz2Dir>
     <bsddbDir>$(ExternalsDir)bsddb-4.7.25.0</bsddbDir>
-    <opensslDir>$(ExternalsDir)openssl-1.0.2t\</opensslDir>
-    <opensslIncludeDir>$(opensslDir)include32</opensslIncludeDir>
-    <opensslIncludeDir Condition="'$(ArchName)' == 'amd64'">$(opensslDir)include64</opensslIncludeDir>
+    <opensslDir>$(ExternalsDir)openssl-bin-1.1.1j\win32</opensslDir>
+    <opensslDir Condition="'$(ArchName)' == 'amd64'">$(ExternalsDir)openssl-bin-1.1.1j\amd64</opensslDir>
+    <opensslIncludeDir>$(opensslDir)\include</opensslIncludeDir>
     <nasmDir>$(ExternalsDir)\nasm-2.11.06\</nasmDir>
 
     <!-- Suffix for all binaries when building for debug -->
