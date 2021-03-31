@@ -37,6 +37,7 @@
     <bz2Dir>$(ExternalsDir)bzip2-1.0.8\</bz2Dir>
     <bsddbDir>$(ExternalsDir)bsddb-4.7.25.0</bsddbDir>
     <opensslDir>$(Local_Lib)bin</opensslDir>
+    <opensslLibDir>$(Local_Lib)lib</opensslLibDir>
     <opensslIncludeDir>$(Local_Lib)include</opensslIncludeDir>
     <nasmDir>$(ExternalsDir)\nasm-2.11.06\</nasmDir>
 
