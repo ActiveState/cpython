@@ -11,13 +11,9 @@ rem *** IMPORTANT ***
 rem If updating bzip2, db, nasm, openssl, or sqlite you must also edit their directory names in python.props.
 rem If updating tcl/tk/tix you must also update their versions/directories in tcltk.props.
 
-set default_OpenSSL=1.0.2t
-if "%OpenSSL_version%"=="" set OpenSSL_version=%default_OpenSSL%
-
 set libraries=
 set libraries=%libraries%                                    bzip2-1.0.8
 if NOT "%IncludeBsddb%"=="false" set libraries=%libraries%   bsddb-4.7.25.0
-if NOT "%IncludeSSL%"=="false" set libraries=%libraries%     openssl-%OpenSSL_version%
 set libraries=%libraries%                                    sqlite-3.34.1.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tcl-8.5.19.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tk-8.5.19.0
@@ -42,13 +38,7 @@ for %%e in (%libraries%) do (
     )
 )
 
-cd ..\externals
-if NOT "%OpenSSL_version%"=="%default_OpenSSL%" (
-    if exist openssl-%OpenSSL_version% (
-        move openssl-%OpenSSL_version% openssl-%default_OpenSSL%
-    )
-)
-cd ..\PCbuild
+echo Finished.
 
 goto end
 
