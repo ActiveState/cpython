@@ -6901,7 +6901,13 @@ posix_fdopen(PyObject *self, PyObject *args)
         return NULL;
 
     /* Sanitize mode.  See fileobject.c */
+#ifdef _AIX
+    /* Patch to fix MemoryError when trying to open files in AIX 64-bit
+       See http://bugs.python.org/issue6600 */
+    mode = PyMem_MALLOC(3+strlen(orgmode));
+#else
     mode = PyMem_MALLOC(strlen(orgmode)+3);
+#endif
     if (!mode) {
         PyErr_NoMemory();
         return NULL;

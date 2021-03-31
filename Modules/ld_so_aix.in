@@ -85,10 +85,6 @@ if test ! -n "$*"; then
   echo $usage; exit 2
 fi
 
-# Default import file for Python
-# Can be overridden by providing a -bI: argument.
-impfile="./python.exp"
-
 # Parse arguments
 while test -n "$1"
 do
@@ -114,7 +110,15 @@ do
 	objfile=`echo $1 | sed "s/-o//"`
 	;;
     -bI:* | -Wl,-bI:*)
-	impfile=`echo $1 | sed -e "s/-Wl,//" -e "s/-bI://"`
+    if test -z "$impfile"; then
+	  # The first -bI:* is specially processed.
+	  impfile=`echo $1 | sed -e "s/-Wl,//" -e "s/-bI://"`
+	else
+          #args="$args -Wl,$1"
+	  x=`echo $1 | sed -e "s/-Wl,//" -e "s/-bI://"`
+          x=`dirname $x`/`basename $x .exp`.so
+	  args="$args $x"
+	fi
 	;;
     -bE:* | -Wl,-bE:*)
 	expfile=`echo $1 | sed -e "s/-Wl,//" -e "s/-bE://"`
@@ -136,6 +140,11 @@ if test "$objfile" = "libpython@VERSION@.so"; then
   ldsocoremode="true" 
 fi
 
+# Default import file for Python
+# Can be overriden by providing a -bI: argument.
+if test -z "$impfile"; then
+  impfile="./python.exp"
+fi
 if test -z "$objs"; then
   echo "ld_so_aix: No input files; exiting."
   exit 2
@@ -162,13 +171,13 @@ if test -z "$entry"; then
   entry=init`echo $filename | sed "s/module.*//"`
 fi
 
-#echo "ld_so_aix: Debug info section"
-#echo "  -> output file : $objfile"
-#echo "  -> import file : $impfile"
-#echo "  -> export file : $expfile"
-#echo "  -> entry point : $entry"
-#echo "  -> object files: $objs"
-#echo "  -> CC arguments: $args"
+echo "ld_so_aix: Debug info section"
+echo "  -> output file : $objfile"
+echo "  -> import file : $impfile"
+echo "  -> export file : $expfile"
+echo "  -> entry point : $entry"
+echo "  -> object files: $objs"
+echo "  -> CC arguments: $args"
 
 if test -z "$ldsocoremode"; then
   CCOPT="-Wl,-e$entry -Wl,-bE:$expfile -Wl,-bI:$impfile -Wl,-bhalt:4"
@@ -184,7 +193,9 @@ CCARGS="$args"
 $makexp $expfile "$objfile" $objs
 
 # Perform the link.
-#echo $CC $CCOPT $CCARGS
+echo %%%%%%%%%%%%%%%%%%%%%%
+echo $CC -L/usr/lib $CCOPT $CCARGS
+echo %%%%%%%%%%%%%%%%%%%%%%
 $CC $CCOPT $CCARGS
 retval=$?
 

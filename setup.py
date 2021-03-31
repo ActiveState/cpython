@@ -29,6 +29,13 @@ def get_platform():
     return sys.platform
 host_platform = get_platform()
 
+# ActivePython change:
+#   ActivePython builds some external libraries into a private build
+#   directory for controlled use by common Python extension modules.
+apy_prefix_dir = r"PT_CONFIG_build_prefix_abs_dir"
+apy_inc_dir = os.path.join(apy_prefix_dir, "include")
+apy_lib_dir = os.path.join(apy_prefix_dir, "lib")
+
 # Were we compiled --with-pydebug or with #define Py_DEBUG?
 COMPILED_WITH_PYDEBUG = ('--with-pydebug' in sysconfig.get_config_var("CONFIG_ARGS"))
 
@@ -500,13 +507,7 @@ class PyBuildExt(build_ext):
             os.unlink(tmpfile)
 
     def detect_modules(self):
-        # Ensure that /usr/local is always used
-        if not cross_compiling:
-            add_dir_to_list(self.compiler.library_dirs, '/usr/local/lib')
-            add_dir_to_list(self.compiler.include_dirs, '/usr/local/include')
-        if cross_compiling:
-            self.add_gcc_paths()
-        self.add_multiarch_paths()
+        self.add_gcc_paths()
 
         # Add paths specified in the environment variables LDFLAGS and
         # CPPFLAGS for header and library files.
@@ -844,6 +845,11 @@ class PyBuildExt(build_ext):
             libs = ['crypt']
         else:
             libs = []
+        # ActivePython change:
+        #   It has been necessary to explicitly link in libc
+        #   *before* libcrypt on Solaris.
+        if sys.platform.startswith("sunos"):
+            libs.insert(0, "c")
         exts.append( Extension('crypt', ['cryptmodule.c'], libraries=libs) )
 
         # CSV files
@@ -854,30 +860,55 @@ class PyBuildExt(build_ext):
                                depends=['socketmodule.h'],
                                libraries=math_libs) )
         # Detect SSL support for the socket module (via _ssl)
-        search_for_ssl_incs_in = [
-                              '/usr/local/ssl/include',
-                              '/usr/contrib/ssl/include/'
-                             ]
-        ssl_incs = find_file('openssl/ssl.h', inc_dirs,
-                             search_for_ssl_incs_in
-                             )
+        # ActivePython change:
+        #   SSL support must explicitly be found in the ActivePython
+        #   extension build dir. This way ActivePython's build can
+        #   control whether the _ssl module is included.
+        if sys.platform == "darwin":
+            if True:
+                search_for_ssl_incs_in = [apy_inc_dir]
+                search_for_ssl_libs_in = [apy_lib_dir]
+            else:
+                search_for_ssl_incs_in = []
+                search_for_ssl_libs_in = []
+        else:
+            search_for_ssl_incs_in = [apy_inc_dir]
+            search_for_ssl_libs_in = [apy_lib_dir]
+        ssl_incs = find_file('openssl/ssl.h', [], search_for_ssl_incs_in)
+        ssl_libs = find_library_file(self.compiler, 'ssl', [],
+                                     search_for_ssl_libs_in)
+
+        #XXX I don't know how this is affecting the ActivePython build.
         if ssl_incs is not None:
             krb5_h = find_file('krb5.h', inc_dirs,
                                ['/usr/kerberos/include'])
             if krb5_h:
                 ssl_incs += krb5_h
-        ssl_libs = find_library_file(self.compiler, 'ssl',lib_dirs,
-                                     ['/usr/local/ssl/lib',
-                                      '/usr/contrib/ssl/lib/'
-                                     ] )
 
         if (ssl_incs is not None and
             ssl_libs is not None):
-            exts.append( Extension('_ssl', ['_ssl.c'],
-                                   include_dirs = ssl_incs,
-                                   library_dirs = ssl_libs,
-                                   libraries = ['ssl', 'crypto'],
-                                   depends = ['socketmodule.h']), )
+            if sys.platform == "darwin":
+                # On darwin we always link the system-supplied SSL
+                exts.append( Extension('_ssl', ['_ssl.c'],
+                                       include_dirs = ssl_incs,
+                                       library_dirs = ssl_libs,
+                                       libraries = ['ssl', 'crypto'],
+                                       depends = ['socketmodule.h']), )
+            else:
+                extra_objects = [
+                    os.path.join(apy_lib_dir, "libssl.a"),
+                    os.path.join(apy_lib_dir, "libcrypto.a"),
+                ]
+                if sys.platform.startswith("linux") and os.uname()[4] == "x86_64":
+                    # http://rt.openssl.org/Ticket/Display.html?id=1521&user=guest&pass=guest
+                    extra_link_args = ["-Wl,-Bsymbolic"]
+                else:
+                    extra_link_args = []
+                exts.append( Extension('_ssl', ['_ssl.c'],
+                                       include_dirs = ssl_incs,
+                                       extra_link_args=extra_link_args,
+                                       extra_objects=extra_objects,
+                                       depends = ['socketmodule.h']) )
         else:
             missing.append('_ssl')
 
@@ -888,7 +919,7 @@ class PyBuildExt(build_ext):
 
         # look for the openssl version header on the compiler search path.
         opensslv_h = find_file('openssl/opensslv.h', [],
-                inc_dirs + search_for_ssl_incs_in)
+                search_for_ssl_incs_in)
         if opensslv_h:
             name = os.path.join(opensslv_h[0], 'openssl/opensslv.h')
             if host_platform == 'darwin' and is_macosx_sdk_path(name):
@@ -910,12 +941,28 @@ class PyBuildExt(build_ext):
 
         if have_any_openssl:
             if have_usable_openssl:
-                # The _hashlib module wraps optimized implementations
-                # of hash functions from the OpenSSL library.
-                exts.append( Extension('_hashlib', ['_hashopenssl.c'],
-                                       include_dirs = ssl_incs,
-                                       library_dirs = ssl_libs,
-                                       libraries = ['ssl', 'crypto']) )
+                if sys.platform == "darwin":
+                    # On darwin we always link the system-supplied SSL
+                    exts.append( Extension('_hashlib', ['_hashopenssl.c'],
+                                           include_dirs = ssl_incs,
+                                           library_dirs = ssl_libs,
+                                           libraries = ['ssl', 'crypto']) )
+                else:
+                    # The _hashlib module wraps optimized implementations
+                    # of hash functions from the OpenSSL library.
+                    extra_objects = [
+                        os.path.join(apy_lib_dir, "libssl.a"),
+                        os.path.join(apy_lib_dir, "libcrypto.a"),
+                    ]
+                    if sys.platform.startswith("linux") and os.uname()[4] == "x86_64":
+                        # http://rt.openssl.org/Ticket/Display.html?id=1521&user=guest&pass=guest
+                        extra_link_args = ["-Wl,-Bsymbolic"]
+                    else:
+                        extra_link_args = []
+                    exts.append( Extension('_hashlib', ['_hashopenssl.c'],
+                                           include_dirs = ssl_incs,
+                                           extra_link_args=extra_link_args,
+                                           extra_objects=extra_objects) )
             else:
                 print ("warning: openssl 0x%08x is too old for _hashlib" %
                        openssl_ver)
@@ -1047,6 +1094,18 @@ class PyBuildExt(build_ext):
 
         class db_found(Exception): pass
         try:
+            # ActivePython change:
+            # - Only consider ActivePython's own Berkeley DB build.
+            # - Link _statically_ to the locally built libdb. Therefore
+            #   don't have to worry about different bsddb versions on
+            #   users' target machines.
+            db_ver = (PT_CONFIG_bsddb_major_ver, PT_CONFIG_bsddb_minor_ver)
+            dblib = "db-%s.%s" % db_ver
+            dblib_dir = [apy_lib_dir]
+            db_incdir = apy_inc_dir
+            extra_objects = [os.path.join(apy_lib_dir, "lib%s.a" % dblib)]
+            raise db_found
+
             # See whether there is a Sleepycat header in the standard
             # search path.
             for d in inc_dirs + db_inc_paths:
@@ -1146,10 +1205,8 @@ class PyBuildExt(build_ext):
             # is on an NFS server that goes away).
             exts.append(Extension('_bsddb', ['_bsddb.c'],
                                   depends = ['bsddb.h'],
-                                  library_dirs=dblib_dir,
-                                  runtime_library_dirs=dblib_dir,
                                   include_dirs=db_incs,
-                                  libraries=dblibs))
+                                  extra_objects=extra_objects))
         else:
             if db_setup_debug: print "db: no appropriate library found"
             db_incs = None
@@ -1449,38 +1506,23 @@ class PyBuildExt(build_ext):
         #
         # You can upgrade zlib to version 1.1.4 yourself by going to
         # http://www.gzip.org/zlib/
-        zlib_inc = find_file('zlib.h', [], inc_dirs)
-        have_zlib = False
-        if zlib_inc is not None:
-            zlib_h = zlib_inc[0] + '/zlib.h'
-            version = '"0.0.0"'
-            version_req = '"1.1.3"'
-            if host_platform == 'darwin' and is_macosx_sdk_path(zlib_h):
-                zlib_h = os.path.join(macosx_sdk_root(), zlib_h[1:])
-            fp = open(zlib_h)
-            while 1:
-                line = fp.readline()
-                if not line:
-                    break
-                if line.startswith('#define ZLIB_VERSION'):
-                    version = line.split()[2]
-                    break
-            if version >= version_req:
-                if (self.compiler.find_library_file(lib_dirs, 'z')):
-                    if host_platform == "darwin":
-                        zlib_extra_link_args = ('-Wl,-search_paths_first',)
-                    else:
-                        zlib_extra_link_args = ()
-                    exts.append( Extension('zlib', ['zlibmodule.c'],
-                                           libraries = ['z'],
-                                           extra_link_args = zlib_extra_link_args))
-                    have_zlib = True
-                else:
-                    missing.append('zlib')
-            else:
-                missing.append('zlib')
+ 
+        #
+        # ActivePython Change:
+        #   ActivePython's build ALWAYS expects a zlib install in
+        #   $(TOP)/build.
+        zlib_inc_dirs = [apy_inc_dir]
+        zlib_lib_dirs = [apy_lib_dir]
+        if sys.platform == "darwin":
+            zlib_extra_link_args = ('-Wl,-search_paths_first',)
         else:
-            missing.append('zlib')
+            zlib_extra_link_args = ()
+        exts.append( Extension('zlib', ['zlibmodule.c'],
+                               include_dirs = zlib_inc_dirs,
+                               library_dirs = zlib_lib_dirs,
+                               libraries = ['z'],
+                               extra_link_args = zlib_extra_link_args))
+        have_zlib = True       
 
         # Helper module for various ascii-encoders.  Uses zlib for an optimized
         # crc32 if we have it.  Otherwise binascii uses its own.
@@ -1495,6 +1537,8 @@ class PyBuildExt(build_ext):
         exts.append( Extension('binascii', ['binascii.c'],
                                extra_compile_args = extra_compile_args,
                                libraries = libraries,
+                               include_dirs = zlib_inc_dirs,
+                               library_dirs = zlib_lib_dirs,
                                extra_link_args = extra_link_args) )
 
         # Gustavo Niemeyer's bz2 module.
@@ -1627,6 +1671,14 @@ class PyBuildExt(build_ext):
         elif host_platform.startswith('netbsd'):
             macros = dict()
             libraries = []
+
+        elif host_platform.startswith('aix'):
+            macros = dict(
+                HAVE_SEM_OPEN=1,
+                HAVE_SEM_TIMEDWAIT=0,
+                HAVE_FD_TRANSFER=1
+                )
+            libraries = ['rt']
 
         else:                                   # Linux and other unices
             macros = dict()
@@ -1938,10 +1990,8 @@ class PyBuildExt(build_ext):
         tcllib = tklib = tcl_includes = tk_includes = None
         for version in ['8.6', '86', '8.5', '85', '8.4', '84', '8.3', '83',
                         '8.2', '82', '8.1', '81', '8.0', '80']:
-            tklib = self.compiler.find_library_file(lib_dirs,
-                                                        'tk' + version)
-            tcllib = self.compiler.find_library_file(lib_dirs,
-                                                         'tcl' + version)
+            tklib = self.compiler.find_library_file([apy_lib_dir], 'tk' + version)
+            tcllib = self.compiler.find_library_file([apy_lib_dir], 'tcl' + version)
             if tklib and tcllib:
                 # Exit the loop when we've found the Tcl/Tk libraries
                 break
@@ -1961,8 +2011,8 @@ class PyBuildExt(build_ext):
                 tcl_include_sub += [dir + os.sep + "tcl" + dotversion]
                 tk_include_sub += [dir + os.sep + "tk" + dotversion]
             tk_include_sub += tcl_include_sub
-            tcl_includes = find_file('tcl.h', inc_dirs, tcl_include_sub)
-            tk_includes = find_file('tk.h', inc_dirs, tk_include_sub)
+            tcl_includes = find_file('tcl.h', [], [apy_inc_dir])
+            tk_includes = find_file('tk.h', [], [apy_inc_dir])
 
         if (tcllib is None or tklib is None or
             tcl_includes is None or tk_includes is None):
@@ -1992,6 +2042,8 @@ class PyBuildExt(build_ext):
             include_dirs.append('/usr/X11/include')
             added_lib_dirs.append('/usr/X11/lib')
 
+        added_lib_dirs.insert(0, apy_lib_dir)
+
         # If Cygwin, then verify that X is installed before proceeding
         if host_platform == 'cygwin':
             x11_inc = find_file('X11/Xlib.h', [], include_dirs)
@@ -2019,11 +2071,26 @@ class PyBuildExt(build_ext):
         if host_platform != "cygwin":
             libs.append('X11')
 
+        lib_kwargs = {}
+        # Look up dependent shared objects in ActivePython's own
+        # lib dir at runtime.
+        lib_kwargs["runtime_library_dirs"] = [apy_lib_dir]
+        if sys.platform.startswith("aix"):
+            # Use AIX's .exp file mechanism instead of "-ltcl8.4 -ltk8.4"
+            # to avoid problems with .a vs .so for shared object
+            # extensions.
+            libs.remove('tcl'+version)
+            libs.remove('tk'+version)
+            libtclEXP = os.path.join(apy_lib_dir, "libtcl%s.exp" % version)
+            libtkEXP = os.path.join(apy_lib_dir, "libtk%s.exp" % version)
+            lib_kwargs["extra_link_args"] = ['-bI:'+libtclEXP,
+                                             '-bI:'+libtkEXP]
         ext = Extension('_tkinter', ['_tkinter.c', 'tkappinit.c'],
                         define_macros=[('WITH_APPINIT', 1)] + defs,
                         include_dirs = include_dirs,
                         libraries = libs,
                         library_dirs = added_lib_dirs,
+                        **lib_kwargs
                         )
         self.extensions.append(ext)
 
