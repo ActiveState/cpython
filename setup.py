@@ -1241,8 +1241,8 @@ class PyBuildExt(build_ext):
 
         for d_ in inc_dirs + sqlite_inc_paths:
             d = d_
-            if host_platform == 'darwin' and is_macosx_sdk_path(d):
-                d = os.path.join(sysroot, d[1:])
+            if host_platform == 'darwin':
+                d = apy_inc_dir
 
             f = os.path.join(d, "sqlite3.h")
             if os.path.exists(f):
