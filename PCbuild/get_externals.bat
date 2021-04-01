@@ -47,7 +47,6 @@ rem files in both this dir and PC\VS9.0
 set libraries=
 set libraries=%libraries%                                    bzip2-1.0.8
 if NOT "%IncludeBsddb%"=="false" set libraries=%libraries%   bsddb-4.7.25.0
-if NOT "%IncludeSSL%"=="false" set libraries=%libraries%     openssl-1.1.1j
 set libraries=%libraries%                                    sqlite-3.34.1.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tcl-8.5.19.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tk-8.5.19.0
@@ -70,7 +69,6 @@ echo.Fetching external binaries...
 set binaries=
 set binaries=%binaries%
 if NOT "%IncludeSSL%"=="false" set binaries=%binaries%     nasm-2.11.06
-if NOT "%IncludeSSL%"=="false" set binaries=%binaries%     openssl-bin-1.1.1j
 
 for %%b in (%binaries%) do (
     if exist "%EXTERNALS_DIR%\%%b" (
