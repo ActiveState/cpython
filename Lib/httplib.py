@@ -1,3 +1,7 @@
+# Copyright (C) 2020 ActiveState Software Inc.
+# httplib is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 r"""HTTP/1.1 client library
 
 <intro stuff goes here>

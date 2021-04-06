@@ -1,5 +1,9 @@
 #! /usr/local/bin/python
 
+# Copyright (C) 2021 ActiveState Software Inc.
+# cgi is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 # NOTE: the above "/usr/local/bin/python" is NOT a mistake.  It is
 # intentionally NOT "/usr/bin/env python".  On many systems
 # (e.g. Solaris), /usr/local/bin is not in $PATH as passed to CGI

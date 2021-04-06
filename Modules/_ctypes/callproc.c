@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2021 ActiveState Software Inc.
+ * callproc is licensed under the PSFLv2 License.
+ * See the file LICENSE for details.
+ */
+
 /*****************************************************************
   This file contains remnant Python 2.3 compatibility code that is no longer
   strictly required.

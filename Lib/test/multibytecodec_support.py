@@ -1,3 +1,7 @@
+# Copyright (C) 2020 ActiveState Software Inc.
+# multibytecodec_support is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 # multibytecodec_support.py
 #   Common Unittest Routines for CJK codecs
 #

@@ -1,3 +1,7 @@
+# Copyright (C) 2021 ActiveState Software Inc.
+# test_urlparse is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 from test import test_support
 import sys
 import unicodedata
