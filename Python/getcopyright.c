@@ -4,6 +4,8 @@
 
 static char cprt[] = 
 "\
+Copyright (c) 2000-2020 ActiveState Software Inc.\n\
+\n\
 Copyright (c) 2001-2020 Python Software Foundation.\n\
 All Rights Reserved.\n\
 \n\

@@ -81,6 +81,18 @@ static long main_thread;
 static pid_t main_pid;
 #endif
 
+/* Code copied from _hotshot.c. Aix's cc dislikes inline in the function definitions. */
+#if !defined(__cplusplus) && !defined(inline)
+#ifdef __GNUC__
+#define inline __inline
+#endif
+#endif
+
+#ifndef inline
+#define inline
+#endif
+
+
 static struct {
     int tripped;
     PyObject *func;
