@@ -1,3 +1,7 @@
+# Copyright (C) 2021 ActiveState Software Inc.
+# test_cgi is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 from io import BytesIO
 from test.test_support import run_unittest, check_warnings
 import cgi

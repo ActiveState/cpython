@@ -1,3 +1,7 @@
+# Copyright (C) 2020 ActiveState Software Inc.
+# test_tarfile is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 import sys
 import os
 import shutil

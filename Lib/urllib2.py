@@ -1,3 +1,7 @@
+# Copyright (C) 2020 ActiveState Software Inc.
+# urllib2 is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 """An extensible library for opening URLs using a variety of protocols
 
 The simplest way to use this module is to call the urlopen function,

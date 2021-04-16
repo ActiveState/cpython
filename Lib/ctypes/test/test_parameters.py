@@ -1,3 +1,7 @@
+# Copyright (C) 2021 ActiveState Software Inc.
+# test_parameters is licensed under the PSFLv2 License.
+# See the file LICENSE for details.
+
 import unittest, sys
 from ctypes.test import need_symbol
 import test.support
