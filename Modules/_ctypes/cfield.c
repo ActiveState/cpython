@@ -1595,6 +1595,7 @@ _ctypes_get_fielddesc(const char *fmt)
     struct fielddesc *table = formattable;
 
     if (!initialized) {
+        initialized = 1;
         _ctypes_init_fielddesc();
     }
 
