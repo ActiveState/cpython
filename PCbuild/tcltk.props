@@ -2,21 +2,35 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="pyproject.props" />
   <PropertyGroup>
-    <TclMajorVersion>8</TclMajorVersion>
-    <TclMinorVersion>5</TclMinorVersion>
-    <TclPatchLevel>19</TclPatchLevel>
-    <TclRevision>0</TclRevision>
+    <TclMajorVersion>$(TCL_MAJOR_VERSION)</TclMajorVersion>
+    <TclMajorVersion Condition="$(TclMajorVersion) == ''">8</TclMajorVersion>
+    <TclMinorVersion>$(TCL_MINOR_VERSION)</TclMinorVersion>
+    <TclMinorVersion Condition="$(TclMinorVersion) == ''">5</TclMinorVersion>
+    <TclPatchLevel>$(TCL_PATCHLEVEL)</TclPatchLevel>
+    <TclPatchLevel Condition="$(TclPatchLevel) == ''">19</TclPatchLevel>
+    <TclRevision>$(TCL_REVISION)</TclRevision>
+    <TclRevision Condition="$(TclRevision) == ''">0</TclRevision>
     <TkMajorVersion>$(TclMajorVersion)</TkMajorVersion>
     <TkMinorVersion>$(TclMinorVersion)</TkMinorVersion>
     <TkPatchLevel>$(TclPatchLevel)</TkPatchLevel>
     <TkRevision>$(TclRevision)</TkRevision>
-    <TixMajorVersion>8</TixMajorVersion>
-    <TixMinorVersion>4</TixMinorVersion>
-    <TixPatchLevel>3</TixPatchLevel>
-    <TixRevision>5</TixRevision>
-    <tclDir>$(ExternalsDir)tcl-$(TclMajorVersion).$(TclMinorVersion).$(TclPatchLevel).$(TclRevision)\</tclDir>
-    <tkDir>$(ExternalsDir)tk-$(TkMajorVersion).$(TkMinorVersion).$(TkPatchLevel).$(TkRevision)\</tkDir>
-    <tixDir>$(ExternalsDir)tix-$(TixMajorVersion).$(TixMinorVersion).$(TixPatchLevel).$(TixRevision)\</tixDir>
+    <TixMajorVersion>$(TIX_MAJOR_VERSION)</TixMajorVersion>
+    <TixMajorVersion Condition="$(TixMajorVersion) == ''">8</TixMajorVersion>
+    <TixMinorVersion>$(TIX_MINOR_VERSION)</TixMinorVersion>
+    <TixMinorVersion Condition="$(TixMinorVersion) == ''">4</TixMinorVersion>
+    <TixPatchLevel>$(TIX_PATCHLEVEL)</TixPatchLevel>
+    <TixPatchLevel Condition="$(TixPatchlevel) == ''">3</TixPatchLevel>
+    <TixRevision>$(TIX_REVISION)</TixRevision>
+    <TixRevision Condition="$(TixRevision) == ''">5</TixRevision>
+    <tclDir>$(TCL_DIR)</tclDir>
+    <tclDir Condition="$(tclDir) == ''">$(ExternalsDir)tcl-core-$(TclMajorVersion).$(TclMinorVersion).$(TclPatchLevel).$(TclRevision)\</tclDir>
+    <tkDir>$(TK_DIR)</tkDir>
+    <tkDir Condition="$(tkDir) == ''">$(ExternalsDir)tk-$(TkMajorVersion).$(TkMinorVersion).$(TkPatchLevel).$(TkRevision)\</tkDir>
+    <tixDir>$(TIX_DIR)</tixDir>
+    <tixDir Condition="$(tixDir) == ''">$(ExternalsDir)tix-$(TixMajorVersion).$(TixMinorVersion).$(TixPatchLevel).$(TixRevision)\</tixDir>
+    <tcltkDir>$(TCL_TK_DIR)</tcltkDir>
+    <tcltkDir Condition="$(tcltkDir) == ''">$(ExternalsDir)tcltk-$(TclMajorVersion).$(TclMinorVersion).$(TclPatchLevel).$(TclRevision)\$(ArchName)\</tcltkDir>
+    <tcltkDir Condition="!HasTrailingSlash($(tcltkDir))">$(tcltkDir)\</tcltkDir>
     <tcltkDir>$(ExternalsDir)tcltk\</tcltkDir>
     <tcltkDir Condition="'$(Platform)' == 'x64'">$(ExternalsDir)tcltk64\</tcltkDir>
     <TclDebugExt Condition="'$(Configuration)' == 'Debug'">g</TclDebugExt>
@@ -37,7 +51,9 @@
     <BuildDirTop>Release</BuildDirTop>
     <BuildDirTop Condition="$(Configuration) == 'Debug'">Debug</BuildDirTop>
     <BuildDirTop Condition="$(TclMachine) != 'IX86'">$(BuildDirTop)_$(TclMachine)</BuildDirTop>
-    <!-- This completely breaks building Tix for any toolset but v90 and should be fixed -->
-    <BuildDirTop>$(BuildDirTop)_VC9</BuildDirTop>
+    <BuildDirTop Condition="$(PlatformToolset) == 'v142'">$(BuildDirTop)_VC16</BuildDirTop>
+    <BuildDirTop Condition="$(PlatformToolset) == 'v141'">$(BuildDirTop)_VC13</BuildDirTop>
+    <BuildDirTop Condition="$(PlatformToolset) == 'v140'">$(BuildDirTop)_VC13</BuildDirTop>
+    <BuildDirTop Condition="$(PlatformToolset) == 'v120'">$(BuildDirTop)_VC12</BuildDirTop>
   </PropertyGroup>
 </Project>
