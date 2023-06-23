@@ -57,10 +57,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tix", "tix.vcxproj", "{C5A3
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tk", "tk.vcxproj", "{7E85ECCF-A72C-4DA4-9E52-884508E80BA1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libeay", "libeay.vcxproj", "{E5B04CC0-EB4C-42AB-B4DC-18EF95F864B0}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ssleay", "ssleay.vcxproj", "{10615B24-73BF-4EFA-93AA-236916321317}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
