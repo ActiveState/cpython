@@ -336,7 +336,13 @@ open_the_file(PyFileObject *f, char *name, char *mode)
     assert(f->f_fp == NULL);
 
     /* probably need to replace 'U' by 'rb' */
+#ifdef _AIX
+    /* Patch to fix MemoryError when trying to open files in AIX 64-bit
+       See http://bugs.python.org/issue6600 */
+    newmode = PyMem_MALLOC(3 + strlen(mode));
+#else
     newmode = PyMem_MALLOC(strlen(mode) + 3);
+#endif
     if (!newmode) {
         PyErr_NoMemory();
         return NULL;

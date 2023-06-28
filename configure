@@ -3511,6 +3511,7 @@ EXPORT_MACOSX_DEPLOYMENT_TARGET='#'
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --without-gcc" >&5
 $as_echo_n "checking for --without-gcc... " >&6; }
 
+DEBUGFLAG='-g'
 # Check whether --with-gcc was given.
 if test "${with_gcc+set}" = set; then :
   withval=$with_gcc;
@@ -3526,6 +3527,7 @@ else
 
 	case $ac_sys_system in
 	AIX*)   CC=${CC:-xlc_r}
+        DEBUGFLAG=''
 		without_gcc=;;
 	BeOS*)
 		case $BE_HOST_CPU in
@@ -6018,9 +6020,9 @@ then
 	    if test "$Py_DEBUG" = 'true' ; then
 		# Optimization messes up debuggers, so turn it off for
 		# debug builds.
-		OPT="-g -O0 -Wall $STRICT_PROTO"
+		OPT="$DEBUGFLAG -O0 -Wall $STRICT_PROTO"
 	    else
-		OPT="-g $WRAP -O3 -Wall $STRICT_PROTO"
+		OPT="$DEBUGFLAG $WRAP -O3 -Wall $STRICT_PROTO"
 	    fi
 	    ;;
 	*)
@@ -6048,6 +6050,9 @@ UNIVERSAL_ARCH_FLAGS=
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
+    # ActivePython change: add -fPIC to all GCC builds of Python.
+    BASECFLAGS="$BASECFLAGS -fPIC"
+
     # Python violates C99 rules, by casting between incompatible
     # pointer types. GCC may generate bad code as a result of that,
     # so use -fno-strict-aliasing if supported.
@@ -8763,7 +8768,7 @@ $as_echo_n "checking LINKFORSHARED... " >&6; }
 if test -z "$LINKFORSHARED"
 then
 	case $ac_sys_system/$ac_sys_release in
-	AIX*)	LINKFORSHARED='-Wl,-bE:Modules/python.exp -lld';;
+	AIX*)	LINKFORSHARED='-Wl,-bE:Modules/python.exp -lld -L/usr/lib';;
 	hp*|HP*)
 	    LINKFORSHARED="-Wl,-E -Wl,+s";;
 #	    LINKFORSHARED="-Wl,-E -Wl,+s -Wl,+b\$(BINLIBDEST)/lib-dynload";;

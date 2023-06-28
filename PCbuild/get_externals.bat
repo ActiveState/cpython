@@ -45,10 +45,9 @@ rem When updating these versions, remember to update the relevant property
 rem files in both this dir and PC\VS9.0
 
 set libraries=
-set libraries=%libraries%                                    bzip2-1.0.6
+set libraries=%libraries%                                    bzip2-1.0.8
 if NOT "%IncludeBsddb%"=="false" set libraries=%libraries%   bsddb-4.7.25.0
-if NOT "%IncludeSSL%"=="false" set libraries=%libraries%     openssl-1.0.2t
-set libraries=%libraries%                                    sqlite-3.28.0.0
+set libraries=%libraries%                                    sqlite-3.34.1.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tcl-8.5.19.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tk-8.5.19.0
 if NOT "%IncludeTkinter%"=="false" set libraries=%libraries% tix-8.4.3.5
@@ -61,7 +60,7 @@ for %%e in (%libraries%) do (
         git clone --depth 1 https://github.com/%ORG%/cpython-source-deps --branch %%e "%EXTERNALS_DIR%\%%e"
     ) else (
         echo.Fetching %%e...
-        %PYTHON% "%PCBUILD%\get_external.py" -O %ORG% %%e
+        %PYTHON% "%PCBUILD%\get_external.py" -O %ORG% -e "%EXTERNALS_DIR%" %%e
     )
 )
 

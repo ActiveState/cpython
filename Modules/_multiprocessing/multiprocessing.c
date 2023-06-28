@@ -14,6 +14,16 @@
     #define HAVE_FD_TRANSFER 0
 #endif
 
+#ifndef _CMSG_ALIGN
+#define _CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) & ~(sizeof (size_t) - 1))
+#endif
+#ifndef CMSG_SPACE
+#define CMSG_SPACE(len) (_CMSG_ALIGN(sizeof(struct cmsghdr)) + _CMSG_ALIGN(len))
+#endif
+#ifndef CMSG_LEN
+#define CMSG_LEN(len) (_CMSG_ALIGN(sizeof(struct cmsghdr)) + (len))
+#endif
+
 PyObject *create_win32_namespace(void);
 
 PyObject *pickle_dumps, *pickle_loads, *pickle_protocol;

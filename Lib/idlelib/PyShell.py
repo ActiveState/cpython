@@ -1052,7 +1052,9 @@ class PyShell(OutputWindow):
                 return False
         else:
             nosub = "==== No Subprocess ===="
-        self.write("Python %s on %s\n%s\n%s" %
+        self.write(
+            ("ActivePython PT_CONFIG_fullver (ActiveState Software Inc.) " + \
+             "based on\nPython %s on %s\n%s\n%s") %
                    (sys.version, sys.platform, self.COPYRIGHT, nosub))
         self.text.focus_force()
         self.showprompt()

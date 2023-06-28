@@ -551,6 +551,7 @@ EXPORT_MACOSX_DEPLOYMENT_TARGET='#'
 
 # XXX shouldn't some/most/all of this code be merged with the stuff later
 # on that fiddles with OPT and BASECFLAGS?
+DEBUGFLAG='-g'
 AC_MSG_CHECKING(for --without-gcc)
 AC_ARG_WITH(gcc,
             AS_HELP_STRING([--without-gcc], [never use gcc]),
@@ -565,6 +566,7 @@ AC_ARG_WITH(gcc,
 	esac], [
 	case $ac_sys_system in
 	AIX*)   CC=${CC:-xlc_r}
+        DEBUGFLAG=''
 		without_gcc=;;
 	BeOS*)
 		case $BE_HOST_CPU in
@@ -1090,9 +1092,9 @@ then
 	    if test "$Py_DEBUG" = 'true' ; then
 		# Optimization messes up debuggers, so turn it off for
 		# debug builds.
-		OPT="-g -O0 -Wall $STRICT_PROTO"
+		OPT="$DEBUGFLAG -O0 -Wall $STRICT_PROTO"
 	    else
-		OPT="-g $WRAP -O3 -Wall $STRICT_PROTO"
+		OPT="$DEBUGFLAG $WRAP -O3 -Wall $STRICT_PROTO"
 	    fi
 	    ;;
 	*)
@@ -2339,7 +2341,7 @@ AC_MSG_CHECKING(LINKFORSHARED)
 if test -z "$LINKFORSHARED"
 then
 	case $ac_sys_system/$ac_sys_release in
-	AIX*)	LINKFORSHARED='-Wl,-bE:Modules/python.exp -lld';;
+	AIX*)	LINKFORSHARED='-Wl,-bE:Modules/python.exp -lld -L/usr/lib';;
 	hp*|HP*)
 	    LINKFORSHARED="-Wl,-E -Wl,+s";;
 #	    LINKFORSHARED="-Wl,-E -Wl,+s -Wl,+b\$(BINLIBDEST)/lib-dynload";;
