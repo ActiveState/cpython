@@ -42,13 +42,13 @@
     <opensslLibdir/>
     <opensslOutDir Condition="$(opensslDir) == ''">$(ExternalsDir)openssl-bin-1.0.2t\$(ArchName)\</opensslOutDir>
     <opensslLibDir Condition="$(opensslDir) == ''">$(opensslOutDir)</opensslLibDir>
-    <opensslIncludeDir Condition="$(opensslDir) == '' and '$(ArchName)' != 'amd64'">$(opensslOutDir)include32</opensslIncludeDir>
-    <opensslIncludeDir Condition="$(opensslDir) == '' and '$(ArchName)' == 'amd64'">$(opensslDir)include64</opensslIncludeDir>
+    <opensslIncludeDir Condition="$(opensslDir) == ''">$(opensslOutDir)include</opensslIncludeDir>
     <opensslDir Condition="$(opensslDir) == ''">$(ExternalsDir)openssl-1.0.2t\</opensslDir>
     <opensslDir Condition="!HasTrailingSlash($(opensslDir))">$(opensslDir)\</opensslDir>
-    <opensslIncludeDir Condition="$(opensslIncludeDir) == '' and '$(ArchName)' != 'amd64'">$(opensslDir)include32</opensslIncludeDir>
-    <opensslIncludeDir Condition="$(opensslIncludeDir) == '' and '$(ArchName)' == 'amd64'">$(opensslDir)include64</opensslIncludeDir>
+    <opensslIncludeDir Condition="$(opensslIncludeDir) == ''">$(opensslDir)include</opensslIncludeDir>
     <opensslLibDir Condition="$(opensslLibDir) == ''">$(opensslDir)lib</opensslLibDir>
+    <opensslBinDir Condition="$(opensslBinDir) == '' and $(SSLMajorVersion) == '1'">$(opensslDir)lib</opensslBinDir>
+    <opensslBinDir Condition="$(opensslBinDir) == ''">$(opensslDir)bin</opensslBinDir>
     <nasmDir>$(ExternalsDir)\nasm-2.11.06\</nasmDir>
 
     <!-- Suffix for all binaries when building for debug -->
