@@ -47,8 +47,6 @@
     <opensslDir Condition="!HasTrailingSlash($(opensslDir))">$(opensslDir)\</opensslDir>
     <opensslIncludeDir Condition="$(opensslIncludeDir) == ''">$(opensslDir)include</opensslIncludeDir>
     <opensslLibDir Condition="$(opensslLibDir) == ''">$(opensslDir)lib</opensslLibDir>
-    <opensslBinDir Condition="$(opensslBinDir) == '' and $(SSLMajorVersion) == '1'">$(opensslDir)lib</opensslBinDir>
-    <opensslBinDir Condition="$(opensslBinDir) == ''">$(opensslDir)bin</opensslBinDir>
     <nasmDir>$(ExternalsDir)\nasm-2.11.06\</nasmDir>
 
     <!-- Suffix for all binaries when building for debug -->
