@@ -69,10 +69,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/Zm200  %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories>$(PySourcePath)Python;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="$(IncludeExternals)">$(zlibIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_USRDLL;Py_BUILD_CORE;Py_ENABLE_SHARED;_CRT_SECURE_NO_WARNINGS;MS_DLL_ID="$(SysWinVer)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="$(IncludeExternals)">_Py_HAVE_ZLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(PySourcePath)Python;$(zlibIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_USRDLL;Py_BUILD_CORE;Py_ENABLE_SHARED;_Py_HAVE_ZLIB;_CRT_SECURE_NO_WARNINGS;MS_DLL_ID="$(SysWinVer)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>version.lib;shlwapi.lib;ws2_32.lib;pathcch.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -176,6 +174,17 @@
     <ClInclude Include="..\Modules\_math.h" />
     <ClInclude Include="..\Modules\md5.h" />
     <ClInclude Include="..\Modules\rotatingtree.h" />
+    <ClInclude Include="$(zlibIncludeDir)\crc32.h" />
+    <ClInclude Include="$(zlibIncludeDir)\deflate.h" />
+    <ClInclude Include="$(zlibIncludeDir)\inffast.h" />
+    <ClInclude Include="$(zlibIncludeDir)\inffixed.h" />
+    <ClInclude Include="$(zlibIncludeDir)\inflate.h" />
+    <ClInclude Include="$(zlibIncludeDir)\inftrees.h" />
+    <ClInclude Include="$(zlibIncludeDir)\trees.h" />
+    <ClInclude Include="$(zlibIncludeDir)\zconf.h" />
+    <ClInclude Include="$(zlibIncludeDir)\zconf.in.h" />
+    <ClInclude Include="$(zlibIncludeDir)\zlib.h" />
+    <ClInclude Include="$(zlibIncludeDir)\zutil.h" />
     <ClInclude Include="..\Modules\cjkcodecs\alg_jisx0201.h" />
     <ClInclude Include="..\Modules\cjkcodecs\cjkcodecs.h" />
     <ClInclude Include="..\Modules\cjkcodecs\emu_jisx0213_2000.h" />
@@ -199,19 +208,6 @@
     <ClInclude Include="..\PC\pyconfig.h" />
     <ClInclude Include="..\Python\importdl.h" />
     <ClInclude Include="..\Python\thread_nt.h" />
-  </ItemGroup>
-  <ItemGroup Condition="$(IncludeExternals)">
-    <ClInclude Include="$(zlibIncludeDir)\crc32.h" />
-    <ClInclude Include="$(zlibIncludeDir)\deflate.h" />
-    <ClInclude Include="$(zlibIncludeDir)\inffast.h" />
-    <ClInclude Include="$(zlibIncludeDir)\inffixed.h" />
-    <ClInclude Include="$(zlibIncludeDir)\inflate.h" />
-    <ClInclude Include="$(zlibIncludeDir)\inftrees.h" />
-    <ClInclude Include="$(zlibIncludeDir)\trees.h" />
-    <ClInclude Include="$(zlibIncludeDir)\zconf.h" />
-    <ClInclude Include="$(zlibIncludeDir)\zconf.in.h" />
-    <ClInclude Include="$(zlibIncludeDir)\zlib.h" />
-    <ClInclude Include="$(zlibIncludeDir)\zutil.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Modules\_bisectmodule.c" />
@@ -260,6 +256,7 @@
     <ClCompile Include="..\Modules\timemodule.c" />
     <ClCompile Include="..\Modules\xxsubtype.c" />
     <ClCompile Include="..\Modules\zipimport.c" />
+    <ClCompile Include="..\Modules\zlibmodule.c" />
     <ClCompile Include="..\Modules\cjkcodecs\_codecs_cn.c" />
     <ClCompile Include="..\Modules\cjkcodecs\_codecs_hk.c" />
     <ClCompile Include="..\Modules\cjkcodecs\_codecs_iso2022.c" />
@@ -376,9 +373,6 @@
     <ClCompile Include="..\Python\sysmodule.c" />
     <ClCompile Include="..\Python\thread.c" />
     <ClCompile Include="..\Python\traceback.c" />
-  </ItemGroup>
-  <ItemGroup Condition="$(IncludeExternals)">
-    <ClCompile Include="..\Modules\zlibmodule.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\PC\python_nt.rc" />
