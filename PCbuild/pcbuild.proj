@@ -51,15 +51,15 @@
     <Projects Include="pyshellext.vcxproj" />
     <!-- Extension modules -->
     <ExtensionModules Include="_asyncio;_ctypes;_decimal;_elementtree;_msi;_multiprocessing;_overlapped;pyexpat;_queue;select;unicodedata;winsound" />
-    <!-- Extension modules that require external sources -->
-    <ExternalModules Include="_bz2;_lzma;_sqlite3" />
     <!-- venv launchers -->
     <Projects Include="venvlauncher.vcxproj;venvwlauncher.vcxproj" />
     <!-- _ssl will build _socket as well, which may cause conflicts in parallel builds -->
+    <ExtensionModules Include="_lzma" Condition="$(IncludeLzma) or $(IncludeExternals)" />
+    <ExtensionModules Include="_bz2" Condition="$(IncludeBzip2) or $(IncludeExternals)" />
+    <ExtensionModules Include="_sqlite3" Condition="$(IncludeSqlite3) or $(IncludeExternals)" />
     <ExtensionModules Include="_socket" Condition="!$(IncludeSSL) or !$(IncludeExternals)" />
-    <ExternalModules Include="_ssl;_hashlib" Condition="$(IncludeSSL)" />
-    <ExternalModules Include="_tkinter" Condition="$(IncludeTkinter)" />
-    <ExtensionModules Include="@(ExternalModules->'%(Identity)')" Condition="$(IncludeExternals)" />
+    <ExtensionModules Include="_ssl;_hashlib" Condition="$(IncludeSSL)" />
+    <ExtensionModules Include="_tkinter" Condition="$(IncludeTkinter)" />
     <Projects Include="@(ExtensionModules->'%(Identity).vcxproj')" Condition="$(IncludeExtensions)" />
     <!-- Test modules -->
     <TestModules Include="_ctypes_test;_testbuffer;_testcapi;_testembed;_testimportmultiple;_testmultiphase;_testconsole" />

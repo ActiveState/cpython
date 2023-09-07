@@ -1052,6 +1052,7 @@
     <ClCompile Include="$(zlibDir)\zutil.c">
       <Filter>Modules\zlib</Filter>
     </ClCompile>
+    <ClCompile Include="..\Modules\zlibmodule.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\PC\python_nt.rc">
