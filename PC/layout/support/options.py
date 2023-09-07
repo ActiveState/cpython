@@ -40,7 +40,6 @@ PRESETS = {
         "help": "APPX package",
         "options": [
             "stable",
-            "pip",
             "distutils",
             "tcltk",
             "idle",
@@ -56,7 +55,6 @@ PRESETS = {
         "options": [
             "dev",
             "tools",
-            "pip",
             "stable",
             "distutils",
             "venv",
@@ -67,7 +65,6 @@ PRESETS = {
         "help": "development kit package",
         "options": [
             "stable",
-            "pip",
             "distutils",
             "tcltk",
             "idle",
