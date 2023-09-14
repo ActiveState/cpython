@@ -375,6 +375,7 @@ def setcopyright():
             "Jython is maintained by the Jython developers (www.jython.org).")
     else:
         builtins.credits = _sitebuiltins._Printer("credits", """\
+    ActivePython is a Python distribution by ActiveState Software Inc.
     Thanks to CWI, CNRI, BeOpen.com, Zope Corporation and a cast of thousands
     for supporting Python development.  See www.python.org for more information.""")
     files, dirs = [], []
@@ -382,11 +383,19 @@ def setcopyright():
     # PEP 420 for more details.
     if hasattr(os, '__file__'):
         here = os.path.dirname(os.__file__)
-        files.extend(["LICENSE.txt", "LICENSE"])
-        dirs.extend([os.path.join(here, os.pardir), here, os.curdir])
+        files.extend(["LICENSE.txt", "LICENSE", "License.txt"])
+        dirs.extend(
+        [os.path.join(here, os.pardir, "Doc"), # dev build and installation on Windows
+         os.path.join(here, os.pardir, os.pardir, "doc", # APy install on Linux
+                      "python%s.%s" % sys.version_info[:2]),
+         # APy install on Mac OS X
+         os.path.join(here, os.pardir, os.pardir, "Resources",
+                      "Python.app", "Contents", "Resources", "English.lproj",
+                      "Help"),
+         here]) # dev build on Linux
     builtins.license = _sitebuiltins._Printer(
         "license",
-        "See https://www.python.org/psf/license/",
+        "See https://www.activestate.com/activepython/license-agreement",
         files, dirs)
 
 
