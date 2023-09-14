@@ -44,6 +44,13 @@ def get_platform():
     return sys.platform
 host_platform = get_platform()
 
+# ActivePython change:
+#   ActivePython builds some external libraries into a private build
+#   directory for controlled use by common Python extension modules.
+apy_prefix_dir = r"PT_CONFIG_build_prefix_abs_dir"
+apy_inc_dir = os.path.join(apy_prefix_dir, "include")
+apy_lib_dir = os.path.join(apy_prefix_dir, "lib")
+
 # Were we compiled --with-pydebug or with #define Py_DEBUG?
 COMPILED_WITH_PYDEBUG = ('--with-pydebug' in sysconfig.get_config_var("CONFIG_ARGS"))
 
@@ -1449,38 +1456,22 @@ class PyBuildExt(build_ext):
         #
         # You can upgrade zlib to version 1.1.4 yourself by going to
         # http://www.gzip.org/zlib/
-        zlib_inc = find_file('zlib.h', [], inc_dirs)
-        have_zlib = False
-        if zlib_inc is not None:
-            zlib_h = zlib_inc[0] + '/zlib.h'
-            version = '"0.0.0"'
-            version_req = '"1.1.3"'
-            if host_platform == 'darwin' and is_macosx_sdk_path(zlib_h):
-                zlib_h = os.path.join(macosx_sdk_root(), zlib_h[1:])
-            with open(zlib_h) as fp:
-                while 1:
-                    line = fp.readline()
-                    if not line:
-                        break
-                    if line.startswith('#define ZLIB_VERSION'):
-                        version = line.split()[2]
-                        break
-            if version >= version_req:
-                if (self.compiler.find_library_file(lib_dirs, 'z')):
-                    if host_platform == "darwin":
-                        zlib_extra_link_args = ('-Wl,-search_paths_first',)
-                    else:
-                        zlib_extra_link_args = ()
-                    exts.append( Extension('zlib', ['zlibmodule.c'],
-                                           libraries = ['z'],
-                                           extra_link_args = zlib_extra_link_args))
-                    have_zlib = True
-                else:
-                    missing.append('zlib')
-            else:
-                missing.append('zlib')
+        #
+        # ActivePython Change:
+        #   ActivePython's build ALWAYS expects a zlib install in
+        #   $(TOP)/build.
+        zlib_inc_dirs = [apy_inc_dir]
+        zlib_lib_dirs = [apy_lib_dir]
+        if sys.platform == "darwin":
+            zlib_extra_link_args = ('-Wl,-search_paths_first',)
         else:
-            missing.append('zlib')
+            zlib_extra_link_args = ()
+        exts.append(Extension('zlib', ['zlibmodule.c'],
+                              include_dirs = zlib_inc_dirs,
+                              library_dirs = zlib_lib_dirs,
+                              libraries = ['z'],
+                              extra_link_args = zlib_extra_link_args))
+        have_zlib = True
 
         # Helper module for various ascii-encoders.  Uses zlib for an optimized
         # crc32 if we have it.  Otherwise binascii uses its own.
@@ -1495,6 +1486,8 @@ class PyBuildExt(build_ext):
         exts.append( Extension('binascii', ['binascii.c'],
                                extra_compile_args = extra_compile_args,
                                libraries = libraries,
+                               include_dirs = zlib_inc_dirs,
+                               library_dirs = zlib_lib_dirs,
                                extra_link_args = extra_link_args) )
 
         # Gustavo Niemeyer's bz2 module.
@@ -1892,6 +1885,8 @@ class PyBuildExt(build_ext):
             # Assume default location for X11
             include_dirs.append('/usr/X11/include')
             added_lib_dirs.append('/usr/X11/lib')
+
+        added_lib_dirs.insert(0, apy_lib_dir)
 
         # If Cygwin, then verify that X is installed before proceeding
         if host_platform == 'cygwin':
