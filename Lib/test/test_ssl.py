@@ -2772,7 +2772,7 @@ else:
         def test_recv_zero(self):
             server = ThreadedEchoServer(CERTFILE)
             server.__enter__()
-            self.addCleanup(server.__exit__, None, None)
+            # self.addCleanup(server.__exit__, None, None)
             s = socket.create_connection((HOST, server.port))
             self.addCleanup(s.close)
             s = ssl.wrap_socket(s, suppress_ragged_eofs=False)
