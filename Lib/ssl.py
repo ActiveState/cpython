@@ -604,7 +604,7 @@ class SSLSocket(socket):
                 # FIX: Need to remove this code
                 # exctype, value = sys.exc_info()[:2]
                 # template = "FPrice An exception of type {0} occurred with a value of {1}."
-                message = template.format(exctype,value)
+                # message = template.format(exctype,value)
                 # logging.error(message)
                 # logging.error(traceback.format_exc())
                 # print("FPrice Caught error", e)
