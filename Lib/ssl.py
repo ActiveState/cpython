@@ -95,7 +95,7 @@ import os
 from collections import namedtuple
 from contextlib import closing
 
-import logging
+# import logging
 
 
 import _ssl             # if we can't import it, let the error propagate
@@ -587,13 +587,13 @@ class SSLSocket(socket):
             connected = False
             blocking = self.getblocking()
             self.setblocking(False)
-            logging.error("FPrice about to call things that cause exceptions")
+            # logging.error("FPrice about to call things that cause exceptions")
             try:
                 # We are not connected so this is not supposed to block, but
                 # testing revealed otherwise on macOS and Windows so we do
                 # the non-blocking dance regardless. Our raise when any data
                 # is found means consuming the data is harmless.
-                logging.error("FPrice about to call recv")
+                # logging.error("FPrice about to call recv")
                 notconn_pre_handshake_data = self.recv(1)
             # FIX: Need to remove this code
             except Exception as e:
@@ -602,25 +602,25 @@ class SSLSocket(socket):
 
                 # EINVAL occurs for recv(1) on non-connected on unix sockets.
                 # FIX: Need to remove this code
-                exctype, value = sys.exc_info()[:2]
-                template = "FPrice An exception of type {0} occurred with a value of {1}."
+                # exctype, value = sys.exc_info()[:2]
+                # template = "FPrice An exception of type {0} occurred with a value of {1}."
                 message = template.format(exctype,value)
-                logging.error(message)
+                # logging.error(message)
                 # logging.error(traceback.format_exc())
-                print("FPrice Caught error", e)
+                # print("FPrice Caught error", e)
                 # FIX: Need to remove this code
                 if e.errno not in (errno.ENOTCONN, errno.EINVAL):
-                    logging.error("FPrice about to call raise")
-                    # raise
-                logging.error("FPrice past call to raise")
+                    # logging.error("FPrice about to call raise")
+                    raise
+                # logging.error("FPrice past call to raise")
 
                 notconn_pre_handshake_data = b''
-            logging.error("FPrice about to call self.setblocking")
+            # logging.error("FPrice about to call self.setblocking")
             self.setblocking(blocking)
-            logging.error("FPrice past call self.setblocking")
-            notconn_pre_handshake_data = b'FPrice'
+            # logging.error("FPrice past call self.setblocking")
+            # notconn_pre_handshake_data = b'FPrice'
             if notconn_pre_handshake_data:
-                logging.error("FPrice inside notcomm_pre_handsake_data")
+                # logging.error("FPrice inside notcomm_pre_handsake_data")
                 # This prevents pending data sent to the socket before it was
                 # closed from escaping to the caller who could otherwise
                 # presume it came through a successful TLS connection.
@@ -629,23 +629,23 @@ class SSLSocket(socket):
                 # Add the SSLError attributes that _ssl.c always adds.
                 notconn_pre_handshake_data_error.reason = reason
                 notconn_pre_handshake_data_error.library = None
-                logging.error("FPrice inside notcomm_pre_handsake_data about to close")
+                # logging.error("FPrice inside notcomm_pre_handsake_data about to close")
                 try:
                     self.close()
                 except OSError:
                     pass
-                logging.error("FPrice inside notcomm_pre_handsake_data past close")
+                # logging.error("FPrice inside notcomm_pre_handsake_data past close")
                 raise notconn_pre_handshake_data_error
         else:
             connected = True
-            logging.error("FPrice I guess we are considered connected")
+            # logging.error("FPrice I guess we are considered connected")
 
-        logging.error("FPrice Before setting closed and nulling sslobj")
+        # logging.error("FPrice Before setting closed and nulling sslobj")
         self._closed = False
         self._sslobj = None
-        logging.error("FPrice Before calling settimeout")
+        # logging.error("FPrice Before calling settimeout")
         self.settimeout(sock_timeout)  # Must come after setblocking() calls.
-        logging.error("FPrice after calling settimeout")
+        # logging.error("FPrice after calling settimeout")
         self._connected = connected
         if connected:
             # create the SSL object
