@@ -613,7 +613,7 @@ class SSLSocket(socket):
                 notconn_pre_handshake_data_error.library = None
                 try:
                     self.close()
-                except (OSError, socket.error):
+                except (OSError, socket_error):
                     pass
                 raise notconn_pre_handshake_data_error
         else:
@@ -635,7 +635,7 @@ class SSLSocket(socket):
                         raise ValueError("do_handshake_on_connect should not be specified for non-blocking sockets")
                     self.do_handshake()
 
-            except (OSError, ValueError, socket.error):
+            except (OSError, ValueError, socket_error):
                 self.close()
                 raise
 
