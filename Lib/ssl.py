@@ -594,7 +594,7 @@ class SSLSocket(socket):
                 # the non-blocking dance regardless. Our raise when any data
                 # is found means consuming the data is harmless.
                 notconn_pre_handshake_data = self.recv(1)
-            except (OSError, socket.error) as e:
+            except (OSError, socket_error) as e:
 
                 # EINVAL occurs for recv(1) on non-connected on unix sockets.
                 if e.errno not in (errno.ENOTCONN, errno.EINVAL):
