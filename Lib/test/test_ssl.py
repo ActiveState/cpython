@@ -3537,10 +3537,7 @@ class TestPreHandshakeClose(unittest.TestCase):
             try:
                 if self.listener:
                     self.listener.close()
-            # except OSError:
-            except Exception as e:
-                # FIX: Remove the following print
-                print("Received an exception: ",e)
+            except (OSError, socket_error):
                 pass
             self.join()
             self.wrap_error = None  # avoid dangling references
