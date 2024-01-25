@@ -2772,7 +2772,7 @@ else:
         def test_recv_zero(self):
             server = ThreadedEchoServer(CERTFILE)
             server.__enter__()
-            # self.addCleanup(server.__exit__, None, None)
+            self.addCleanup(server.__exit__, None, None)
             s = socket.create_connection((HOST, server.port))
             self.addCleanup(s.close)
             s = ssl.wrap_socket(s, suppress_ragged_eofs=False)
@@ -3605,7 +3605,7 @@ class TestPreHandshakeClose(unittest.TestCase):
                 call_after_accept=call_after_accept,
                 name="preauth_data_to_tls_server")
         server.__enter__()  # starts it
-        # self.addCleanup(server.__exit__)  # ... & unittest.TestCase stops it.
+        self.addCleanup(server.__exit__)  # ... & unittest.TestCase stops it.
 
         with socket.socket() as client:
             client.connect(server.listener.getsockname())
@@ -3647,7 +3647,7 @@ class TestPreHandshakeClose(unittest.TestCase):
                 call_after_accept=call_after_accept,
                 name="preauth_data_to_tls_client")
         server.__enter__()  # starts it
-        # self.addCleanup(server.__exit__)  # ... & unittest.TestCase stops it.
+        self.addCleanup(server.__exit__)  # ... & unittest.TestCase stops it.
 
         # Redundant; call_after_accept sets SO_LINGER on the accepted conn.
         set_socket_so_linger_on_with_zero_timeout(server.listener)
