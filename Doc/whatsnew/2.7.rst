@@ -2777,6 +2777,15 @@ It has been replaced by the new ``make regen-all`` target.
 
 .. _acks27:
 
+Security fix for FTP
+================================
+
+A security fix alters the :class:`ftplib.FTP` behavior to not trust the
+IPv4 address sent from the remote server when setting up a passive data
+channel.  We reuse the ftp server IP address instead.  For unusual code
+requiring the old behavior, set a ``trust_server_pasv_ipv4_address``
+attribute on your FTP instance to ``True``.  (See :issue:`43285`)
+
 Acknowledgements
 ================
 

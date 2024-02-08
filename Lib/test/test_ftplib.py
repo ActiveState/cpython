@@ -67,6 +67,10 @@ class DummyFTPHandler(asynchat.async_chat):
         self.rest = None
         self.next_retr_data = RETR_DATA
         self.push('220 welcome')
+        # We use this as the string IPv4 address to direct the client
+        # to in response to a PASV command.  To test security behavior.
+        # https://bugs.python.org/issue43285/.
+        self.fake_pasv_server_ip = '252.253.254.255'
 
     def collect_incoming_data(self, data):
         self.in_buffer.append(data)
@@ -109,13 +113,13 @@ class DummyFTPHandler(asynchat.async_chat):
         sock.bind((self.socket.getsockname()[0], 0))
         sock.listen(5)
         sock.settimeout(10)
-        ip, port = sock.getsockname()[:2]
-        ip = ip.replace('.', ',')
-        p1, p2 = divmod(port, 256)
+        port = sock.getsockname()[1]
+        ip = self.fake_pasv_server_ip
+        ip = ip.replace('.', ','); p1 = port / 256; p2 = port % 256
         self.push('227 entering passive mode (%s,%d,%d)' %(ip, p1, p2))
         conn, addr = sock.accept()
         self.dtp = self.dtp_handler(conn, baseclass=self)
-
+        
     def cmd_eprt(self, arg):
         af, ip, port = arg.split(arg[0])[1:-1]
         port = int(port)
@@ -576,6 +580,107 @@ class TestFTPClass(TestCase):
         conn.close()
         # IPv4 is in use, just make sure send_epsv has not been used
         self.assertEqual(self.server.handler_instance.last_received_cmd, 'pasv')
+
+    def test_makepasv_issue43285_security_disabled(self):
+        """Test the opt-in to the old vulnerable behavior."""
+        self.client.trust_server_pasv_ipv4_address = True
+        bad_host, port = self.client.makepasv()
+        self.assertEqual(
+                bad_host, self.server.handler_instance.fake_pasv_server_ip)
+        # Opening and closing a connection keeps the dummy server happy
+        # instead of timing out on accept.
+        socket.create_connection((self.client.sock.getpeername()[0], port),
+                                 timeout=TIMEOUT).close()
+
+    def test_makepasv_issue43285_security_enabled_default(self):
+        self.assertFalse(self.client.trust_server_pasv_ipv4_address)
+        trusted_host, port = self.client.makepasv()
+        self.assertNotEqual(
+                trusted_host, self.server.handler_instance.fake_pasv_server_ip)
+        # Opening and closing a connection keeps the dummy server happy
+        # instead of timing out on accept.
+        socket.create_connection((trusted_host, port), timeout=TIMEOUT).close()
+
+    def test_with_statement(self):
+        self.client.quit()
+
+        def is_client_connected():
+            if self.client.sock is None:
+                return False
+            try:
+                self.client.sendcmd('noop')
+            except (OSError, EOFError):
+                return False
+            return True
+
+        # base test
+        with ftplib.FTP(timeout=TIMEOUT) as self.client:
+            self.client.connect(self.server.host, self.server.port)
+            self.client.sendcmd('noop')
+            self.assertTrue(is_client_connected())
+        self.assertEqual(self.server.handler_instance.last_received_cmd, 'quit')
+        self.assertFalse(is_client_connected())
+
+        # QUIT sent inside the with block
+        with ftplib.FTP(timeout=TIMEOUT) as self.client:
+            self.client.connect(self.server.host, self.server.port)
+            self.client.sendcmd('noop')
+            self.client.quit()
+        self.assertEqual(self.server.handler_instance.last_received_cmd, 'quit')
+        self.assertFalse(is_client_connected())
+
+        # force a wrong response code to be sent on QUIT: error_perm
+        # is expected and the connection is supposed to be closed
+        try:
+            with ftplib.FTP(timeout=TIMEOUT) as self.client:
+                self.client.connect(self.server.host, self.server.port)
+                self.client.sendcmd('noop')
+                self.server.handler_instance.next_response = '550 error on quit'
+        except ftplib.error_perm as err:
+            self.assertEqual(str(err), '550 error on quit')
+        else:
+            self.fail('Exception not raised')
+        # needed to give the threaded server some time to set the attribute
+        # which otherwise would still be == 'noop'
+        time.sleep(0.1)
+        self.assertEqual(self.server.handler_instance.last_received_cmd, 'quit')
+        self.assertFalse(is_client_connected())
+
+    def test_source_address(self):
+        self.client.quit()
+        port = support.find_unused_port()
+        try:
+            self.client.connect(self.server.host, self.server.port,
+                                source_address=(HOST, port))
+            self.assertEqual(self.client.sock.getsockname()[1], port)
+            self.client.quit()
+        except OSError as e:
+            if e.errno == errno.EADDRINUSE:
+                self.skipTest("couldn't bind to port %d" % port)
+            raise
+
+    def test_source_address_passive_connection(self):
+        port = support.find_unused_port()
+        self.client.source_address = (HOST, port)
+        try:
+            with self.client.transfercmd('list') as sock:
+                self.assertEqual(sock.getsockname()[1], port)
+        except OSError as e:
+            if e.errno == errno.EADDRINUSE:
+                self.skipTest("couldn't bind to port %d" % port)
+            raise
+
+    def test_parse257(self):
+        self.assertEqual(ftplib.parse257('257 "/foo/bar"'), '/foo/bar')
+        self.assertEqual(ftplib.parse257('257 "/foo/bar" created'), '/foo/bar')
+        self.assertEqual(ftplib.parse257('257 ""'), '')
+        self.assertEqual(ftplib.parse257('257 "" created'), '')
+        self.assertRaises(ftplib.error_reply, ftplib.parse257, '250 "/foo/bar"')
+        # The 257 response is supposed to include the directory
+        # name and in case it contains embedded double-quotes
+        # they must be doubled (see RFC-959, chapter 7, appendix 2).
+        self.assertEqual(ftplib.parse257('257 "/foo/b""ar"'), '/foo/b"ar')
+        self.assertEqual(ftplib.parse257('257 "/foo/b""ar" created'), '/foo/b"ar')
 
     def test_line_too_long(self):
         self.assertRaises(ftplib.Error, self.client.sendcmd,
