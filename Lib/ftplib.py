@@ -109,25 +109,45 @@ class FTP:
     welcome = None
     passiveserver = 1
     encoding = "latin-1"
-    # Disables https://bugs.python.org/issue43285 security if set to True.
-    trust_server_pasv_ipv4_address = False
+    # # Disables https://bugs.python.org/issue43285 security if set to True.
+    # trust_server_pasv_ipv4_address = False
 
     # Initialization method (called by class instantiation).
     # Initialize host to localhost, port to standard ftp port
     # Optional arguments are host (for connect()),
     # and user, passwd, acct (for login())
     def __init__(self, host='', user='', passwd='', acct='',
-                 timeout=_GLOBAL_DEFAULT_TIMEOUT):
+                 timeout=_GLOBAL_DEFAULT_TIMEOUT, source_address=None):
+        self.source_address = source_address
+        # Disables https://bugs.python.org/issue43285 security if set to True.
+        self.trust_server_pasv_ipv4_address = False
         self.timeout = timeout
         if host:
             self.connect(host)
             if user:
                 self.login(user, passwd, acct)
 
-    def connect(self, host='', port=0, timeout=-999):
+    def __enter__(self):
+        return self
+
+    # Context management protocol: try to quit() if active
+    def __exit__(self, *args):
+        if self.sock is not None:
+            try:
+                self.quit()
+            except (OSError, EOFError):
+                pass
+            finally:
+                if self.sock is not None:
+                    self.close()
+
+    def connect(self, host='', port=0, timeout=-999, source_address=None):
         '''Connect to host.  Arguments are:
          - host: hostname to connect to (string, default previous host)
          - port: port to connect to (integer, default previous port)
+         - timeout: the timeout to set against the ftp socket(s)
+         - source_address: a 2-tuple (host, port) for the socket to bind
+           to as its source address before connecting.
         '''
         if host != '':
             self.host = host
@@ -135,6 +155,8 @@ class FTP:
             self.port = port
         if timeout != -999:
             self.timeout = timeout
+        if source_address is not None:
+            self.source_address = source_address
         self.sock = socket.create_connection((self.host, self.port), self.timeout)
         self.af = self.sock.family
         self.file = self.sock.makefile('rb')

@@ -15,6 +15,7 @@ try:
 except ImportError:
     ssl = None
 
+from contextlib import closing
 from unittest import TestCase, SkipTest, skipUnless
 from test import test_support
 from test.test_support import HOST, HOSTv6
@@ -648,7 +649,7 @@ class TestFTPClass(TestCase):
 
     def test_source_address(self):
         self.client.quit()
-        port = support.find_unused_port()
+        port = test_support.find_unused_port()
         try:
             self.client.connect(self.server.host, self.server.port,
                                 source_address=(HOST, port))
@@ -660,10 +661,10 @@ class TestFTPClass(TestCase):
             raise
 
     def test_source_address_passive_connection(self):
-        port = support.find_unused_port()
+        port = test_support.find_unused_port()
         self.client.source_address = (HOST, port)
         try:
-            with self.client.transfercmd('list') as sock:
+            with closing(self.client.transfercmd('list')) as sock:
                 self.assertEqual(sock.getsockname()[1], port)
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
