@@ -3,11 +3,12 @@
 
 #include "pyconfig.h" /* include for defines */
 
+/* Always include inttypes.h now because of pytime.h */
 /* Some versions of HP-UX & Solaris need inttypes.h for int32_t,
    INT32_MAX, etc. */
-#ifdef HAVE_INTTYPES_H
+/* #ifdef HAVE_INTTYPES_H */
 #include <inttypes.h>
-#endif
+/* #endif */
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
