@@ -44,3 +44,13 @@ A flaw was found in Python, specifically within the urllib.parse module. This mo
 CVE-2021-4189
 
 A flaw was found in Python, specifically in the FTP (File Transfer Protocol) client library in PASV (passive) mode. The issue is how the FTP client trusts the host from the PASV response by default. This flaw allows an attacker to set up a malicious FTP server that can trick FTP clients into connecting back to a given IP address and port. This vulnerability could lead to FTP client scanning ports, which otherwise would not have been possible.
+
+.. bpo: 42051
+.. date: 2024-03-12
+.. nonce:
+.. release date: 2024-03-12
+.. section: Core and Builtins
+
+CVE-2022-48565
+
+An XML External Entity (XXE) issue was discovered in Python through 3.9.1. The plistlib module no longer accepts entity declarations in XML plist files to avoid XML vulnerabilities.
