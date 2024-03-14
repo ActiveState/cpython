@@ -479,3 +479,8 @@ class PlistParser:
         self.addObject(Data.fromBase64(self.getData()))
     def end_date(self):
         self.addObject(_dateFromString(self.getData()))
+
+
+class InvalidFileException (ValueError):
+    def __init__(self, message="Invalid file"):
+        ValueError.__init__(self, message)
