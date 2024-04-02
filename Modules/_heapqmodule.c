@@ -52,7 +52,11 @@ _siftdown(PyListObject *heap, Py_ssize_t startpos, Py_ssize_t pos)
     while (pos > startpos) {
         parentpos = (pos - 1) >> 1;
         parent = PyList_GET_ITEM(heap, parentpos);
+        Py_INCREF(newitem);
+        Py_INCREF(parent);
         cmp = cmp_lt(newitem, parent);
+        Py_DECREF(parent);
+        Py_DECREF(newitem);
         if (cmp == -1)
             return -1;
         if (size != PyList_GET_SIZE(heap)) {
@@ -93,9 +97,13 @@ _siftup(PyListObject *heap, Py_ssize_t pos)
         childpos = 2*pos + 1;    /* leftmost child position  */
         rightpos = childpos + 1;
         if (rightpos < endpos) {
-            cmp = cmp_lt(
-                PyList_GET_ITEM(heap, childpos),
-                PyList_GET_ITEM(heap, rightpos));
+            PyObject* a = PyList_GET_ITEM(heap, childpos);
+            PyObject* b = PyList_GET_ITEM(heap, rightpos);
+            Py_INCREF(a);
+            Py_INCREF(b);
+            cmp = cmp_lt(a,b);
+            Py_DECREF(a);
+            Py_DECREF(b);
             if (cmp == -1)
                 return -1;
             if (cmp == 0)
@@ -236,7 +244,10 @@ heappushpop(PyObject *self, PyObject *args)
         return item;
     }
 
-    cmp = cmp_lt(PyList_GET_ITEM(heap, 0), item);
+    PyObject* top = PyList_GET_ITEM(heap, 0);
+    Py_INCREF(top);
+    cmp = cmp_lt(top, item);
+    Py_DECREF(top);
     if (cmp == -1)
         return NULL;
     if (cmp == 0) {
@@ -395,7 +406,11 @@ _siftdownmax(PyListObject *heap, Py_ssize_t startpos, Py_ssize_t pos)
     while (pos > startpos){
         parentpos = (pos - 1) >> 1;
         parent = PyList_GET_ITEM(heap, parentpos);
+        Py_INCREF(parent);
+        Py_INCREF(newitem);
         cmp = cmp_lt(parent, newitem);
+        Py_DECREF(parent);
+        Py_DECREF(newitem);
         if (cmp == -1) {
             Py_DECREF(newitem);
             return -1;
@@ -436,9 +451,13 @@ _siftupmax(PyListObject *heap, Py_ssize_t pos)
         childpos = 2*pos + 1;    /* leftmost child position  */
         rightpos = childpos + 1;
         if (rightpos < endpos) {
-            cmp = cmp_lt(
-                PyList_GET_ITEM(heap, rightpos),
-                PyList_GET_ITEM(heap, childpos));
+            PyObject* a = PyList_GET_ITEM(heap, rightpos);
+            PyObject* b = PyList_GET_ITEM(heap, childpos);
+            Py_INCREF(a);
+            Py_INCREF(b);
+            cmp = cmp_lt(a, b);
+            Py_DECREF(a);
+            Py_DECREF(b);
             if (cmp == -1) {
                 Py_DECREF(newitem);
                 return -1;
