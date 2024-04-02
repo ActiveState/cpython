@@ -401,7 +401,8 @@ class TestErrorHandling(TestCase):
         # when comparing objects as they can alter the heap
         class EvilClass(int):
             def __lt__(self, o):
-                heap.clear()
+                # heap.clear()
+                del heap[:]
                 return NotImplemented
 
         heap = []
@@ -412,12 +413,14 @@ class TestErrorHandling(TestCase):
 
         class h(int):
             def __lt__(self, o):
-                list2.clear()
+                # list2.clear()
+                del list2[:]
                 return NotImplemented
 
         class g(int):
             def __lt__(self, o):
-                list1.clear()
+                # list1.clear()
+                del list1[:]
                 return NotImplemented
 
         list1, list2 = [], []
