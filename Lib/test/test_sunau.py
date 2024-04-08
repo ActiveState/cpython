@@ -1,6 +1,9 @@
 from test.test_support import TESTFN, run_unittest
 import unittest
 from test import audiotests
+from audioop import byteswap
+import io
+import struct
 import sys
 import sunau
 
@@ -95,6 +98,42 @@ class SunauULAWTest(SunauTest, unittest.TestCase):
 def test_main():
     run_unittest(SunauPCM8Test, SunauPCM16Test, SunauPCM16Test,
                  SunauPCM32Test, SunauULAWTest)
+
+
+class SunauLowLevelTest(unittest.TestCase):
+
+    def test_read_bad_magic_number(self):
+        b = b'SPA'
+        with self.assertRaises(EOFError):
+            sunau.open(io.BytesIO(b))
+        b = b'SPAM'
+        with self.assertRaisesRegex(sunau.Error, 'bad magic number'):
+            sunau.open(io.BytesIO(b))
+
+    def test_read_too_small_header(self):
+        b = struct.pack('>LLLLL', sunau.AUDIO_FILE_MAGIC, 20, 0,
+                        sunau.AUDIO_FILE_ENCODING_LINEAR_8, 11025)
+        with self.assertRaisesRegex(sunau.Error, 'header size too small'):
+            sunau.open(io.BytesIO(b))
+
+    def test_read_too_large_header(self):
+        b = struct.pack('>LLLLLL', sunau.AUDIO_FILE_MAGIC, 124, 0,
+                        sunau.AUDIO_FILE_ENCODING_LINEAR_8, 11025, 1)
+        b += b'\0' * 100
+        with self.assertRaisesRegex(sunau.Error, 'header size ridiculously large'):
+            sunau.open(io.BytesIO(b))
+
+    def test_read_wrong_encoding(self):
+        b = struct.pack('>LLLLLL', sunau.AUDIO_FILE_MAGIC, 24, 0, 0, 11025, 1)
+        with self.assertRaisesRegex(sunau.Error, r'encoding not \(yet\) supported'):
+            sunau.open(io.BytesIO(b))
+
+    def test_read_wrong_number_of_channels(self):
+        b = struct.pack('>LLLLLL', sunau.AUDIO_FILE_MAGIC, 24, 0,
+                        sunau.AUDIO_FILE_ENCODING_LINEAR_8, 11025, 0)
+        with self.assertRaisesRegex(sunau.Error, 'bad # of channels'):
+            sunau.open(io.BytesIO(b))
+
 
 if __name__ == "__main__":
     test_main()
