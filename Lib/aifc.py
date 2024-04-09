@@ -135,6 +135,7 @@ writeframesraw.
 """
 
 import struct
+import warnings
 import __builtin__
 
 __all__ = ["Error","open","openfp"]
@@ -316,16 +317,16 @@ class Aifc_read:
             except EOFError:
                 break
             chunkname = chunk.getname()
-            if chunkname == 'COMM':
+            if chunkname == b'COMM':
                 self._read_comm_chunk(chunk)
                 self._comm_chunk_read = 1
-            elif chunkname == 'SSND':
+            elif chunkname == b'SSND':
                 self._ssnd_chunk = chunk
                 dummy = chunk.read(8)
                 self._ssnd_seek_needed = 0
-            elif chunkname == 'FVER':
+            elif chunkname == b'FVER':
                 self._version = _read_ulong(chunk)
-            elif chunkname == 'MARK':
+            elif chunkname == b'MARK':
                 self._readmark(chunk)
             chunk.skip()
         if not self._comm_chunk_read or not self._ssnd_chunk:
@@ -466,16 +467,17 @@ class Aifc_read:
         self._sampwidth = (_read_short(chunk) + 7) // 8
         self._framerate = int(_read_float(chunk))
         if self._sampwidth <= 0:
-            raise Error('bad sample width')
+            raise Error, 'bad sample width'
         if self._nchannels <= 0:
-            raise Error('bad # of channels')
+            raise Error, 'bad # of channels'
+
         self._framesize = self._nchannels * self._sampwidth
         if self._aifc:
             #DEBUG: SGI's soundeditor produces a bad size :-(
             kludge = 0
             if chunk.chunksize == 18:
                 kludge = 1
-                print 'Warning: bad COMM chunk size'
+                warnings.warn("bad COMM chunk size")
                 chunk.chunksize = 23
             #DEBUG end
             self._comptype = chunk.read(4)
@@ -539,11 +541,13 @@ class Aifc_read:
                     # a position 0 and name ''
                     self._markers.append((id, pos, name))
         except EOFError:
-            print 'Warning: MARK chunk contains only',
-            print len(self._markers),
-            if len(self._markers) == 1: print 'marker',
-            else: print 'markers',
-            print 'instead of', nmarkers
+            warning_message = 'MARK chunk contains only ' + str(len(self._markers))
+            if len(self._markers) == 1: 
+                warning_message += ' marker '
+            else: 
+                warning_message += ' markers '
+            warning_message += 'instead of ' + str(nmarkers)
+            warnings.warn(warning_message)
 
 class Aifc_write:
     # Variables used in this class:

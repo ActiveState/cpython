@@ -7,6 +7,7 @@ import io
 import sys
 import struct
 import aifc
+from test.test_support import check_warnings
 
 
 class AifcTest(audiotests.AudioWriteTests,
@@ -237,7 +238,7 @@ class AIFCLowLevelTest(unittest.TestCase):
                                        0x4000 | 12, 11025<<18, 0)
             b += b'NONE' + struct.pack('B', 14) + b'not compressed' + b'\x00'
             b += b'SSND' + struct.pack('>L', 8) + b'\x00' * 8
-            with self.assertRaisesRegex(aifc.Error, 'bad # of channels'):
+            with self.assertRaisesRegexp(aifc.Error, 'bad # of channels'):
                 aifc.open(io.BytesIO(b))
 
     def test_read_wrong_sample_width(self):
@@ -247,7 +248,7 @@ class AIFCLowLevelTest(unittest.TestCase):
                                        0x4000 | 12, 11025<<18, 0)
             b += b'NONE' + struct.pack('B', 14) + b'not compressed' + b'\x00'
             b += b'SSND' + struct.pack('>L', 8) + b'\x00' * 8
-            with self.assertRaisesRegex(aifc.Error, 'bad sample width'):
+            with self.assertRaisesRegexp(aifc.Error, 'bad sample width'):
                 aifc.open(io.BytesIO(b))
 
     def test_read_wrong_marks(self):
@@ -256,11 +257,9 @@ class AIFCLowLevelTest(unittest.TestCase):
                                    0x4000 | 12, 11025<<18, 0)
         b += b'SSND' + struct.pack('>L', 8) + b'\x00' * 8
         b += b'MARK' + struct.pack('>LhB', 3, 1, 1)
-        with self.assertWarns(UserWarning) as cm:
+        with check_warnings(('MARK chunk contains only 0 markers instead of 1', UserWarning)):
             f = aifc.open(io.BytesIO(b))
-        self.assertEqual(s.getvalue(), 'Warning: MARK chunk contains '
-                                       'only 0 markers instead of 1\n')
-        self.assertEqual(f.getmarkers(), None)
+            self.assertEqual(f.getmarkers(), None)
 
     def test_read_comm_kludge_compname_even(self):
         b = b'FORM' + struct.pack('>L', 4) + b'AIFC'
@@ -268,9 +267,8 @@ class AIFCLowLevelTest(unittest.TestCase):
                                    0x4000 | 12, 11025<<18, 0)
         b += b'NONE' + struct.pack('B', 4) + b'even' + b'\x00'
         b += b'SSND' + struct.pack('>L', 8) + b'\x00' * 8
-        with self.assertWarns(UserWarning) as cm:
+        with check_warnings(('bad COMM chunk size', UserWarning)):
             f = aifc.open(io.BytesIO(b))
-        self.assertEqual(s.getvalue(), 'Warning: bad COMM chunk size\n')
         self.assertEqual(f.getcompname(), 'even')
 
     def test_read_comm_kludge_compname_odd(self):
@@ -279,9 +277,8 @@ class AIFCLowLevelTest(unittest.TestCase):
                                    0x4000 | 12, 11025<<18, 0)
         b += b'NONE' + struct.pack('B', 3) + b'odd'
         b += b'SSND' + struct.pack('>L', 8) + b'\x00' * 8
-        with self.assertWarns(UserWarning) as cm:
+        with check_warnings(('bad COMM chunk size', UserWarning)):
             f = aifc.open(io.BytesIO(b))
-        self.assertEqual(s.getvalue(), 'Warning: bad COMM chunk size\n')
         self.assertEqual(f.getcompname(), 'odd')
 
     def test_write_params_raises(self):

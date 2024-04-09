@@ -2,7 +2,6 @@ from test.test_support import TESTFN, run_unittest
 import unittest
 from test import audiotests
 from test import support
-from audioop import byteswap
 import io
 import struct
 import sys

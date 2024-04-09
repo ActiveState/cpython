@@ -269,12 +269,12 @@ class Wave_read:
         try:
             wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = struct.unpack_from('<HHLLH', chunk.read(14))
         except struct.error:
-            raise EOFError from None
+            raise EOFError
         if wFormatTag == WAVE_FORMAT_PCM:
             try:
                 sampwidth = struct.unpack_from('<H', chunk.read(2))[0]
             except struct.error:
-                raise EOFError from None
+                raise EOFError
             self._sampwidth = (sampwidth + 7) // 8
             if not self._sampwidth:
                 raise Error('bad sample width')
