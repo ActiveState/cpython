@@ -93,7 +93,7 @@ def _samefile(src, dst):
     return (os.path.normcase(os.path.abspath(src)) ==
             os.path.normcase(os.path.abspath(dst)))
 
-def copyfile(src, dst, *, follow_symlinks=True):
+def copyfile(src, dst, follow_symlinks=True):
     """Copy data from src to dst.
 
     If follow_symlinks is not set and src is a symbolic link, a new
@@ -122,7 +122,7 @@ def copyfile(src, dst, *, follow_symlinks=True):
                 copyfileobj(fsrc, fdst)
     return dst
 
-def copymode(src, dst, *, follow_symlinks=True):
+def copymode(src, dst, follow_symlinks=True):
     """Copy mode bits from src to dst.
 
     If follow_symlinks is not set, symlinks aren't followed if and only
@@ -144,7 +144,7 @@ def copymode(src, dst, *, follow_symlinks=True):
     chmod_func(dst, stat.S_IMODE(st.st_mode))
 
 if hasattr(os, 'listxattr'):
-    def _copyxattr(src, dst, *, follow_symlinks=True):
+    def _copyxattr(src, dst, follow_symlinks=True):
         """Copy extended filesystem attributes from `src` to `dst`.
 
         Overwrite existing attributes.
@@ -170,7 +170,7 @@ else:
     def _copyxattr(*args, **kwargs):
         pass
 
-def copystat(src, dst, *, follow_symlinks=True):
+def copystat(src, dst, follow_symlinks=True):
     """Copy file metadata
 
     Copy the permission bits, last access time, last modification time, and
@@ -181,7 +181,7 @@ def copystat(src, dst, *, follow_symlinks=True):
     If the optional flag `follow_symlinks` is not set, symlinks aren't
     followed if and only if both `src` and `dst` are symlinks.
     """
-    def _nop(*args, ns=None, follow_symlinks=None):
+    def _nop(*args, **kwargs):
         pass
 
     # follow symlinks (aka don't not follow symlinks)
@@ -228,7 +228,7 @@ def copystat(src, dst, *, follow_symlinks=True):
                 raise
     _copyxattr(src, dst, follow_symlinks=follow)
 
-def copy(src, dst, *, follow_symlinks=True):
+def copy(src, dst, follow_symlinks=True):
     """Copy data and mode bits ("cp src dst"). Return the file's destination.
 
     The destination may be a directory.
@@ -246,7 +246,7 @@ def copy(src, dst, *, follow_symlinks=True):
     copymode(src, dst, follow_symlinks=follow_symlinks)
     return dst
 
-def copy2(src, dst, *, follow_symlinks=True):
+def copy2(src, dst, follow_symlinks=True):
     """Copy data and metadata. Return the file's destination.
 
     Metadata is copied with copystat(). Please see the copystat function
@@ -443,10 +443,11 @@ def _rmtree_safe_fd(topfd, path, onerror):
             except OSError:
                 onerror(os.unlink, fullname, sys.exc_info())
 
-_use_fd_functions = ({os.open, os.stat, os.unlink, os.rmdir} <=
-                     os.supports_dir_fd and
-                     os.listdir in os.supports_fd and
-                     os.stat in os.supports_follow_symlinks)
+# _use_fd_functions = ({os.open, os.stat, os.unlink, os.rmdir} <=
+#                      os.supports_dir_fd and
+#                      os.listdir in os.supports_fd and
+#                      os.stat in os.supports_follow_symlinks)
+_use_fd_functions = False
 
 def rmtree(path, ignore_errors=False, onerror=None):
     """Recursively delete a directory tree.
@@ -908,7 +909,7 @@ def _unpack_zipfile(filename, extract_dir):
     finally:
         zip.close()
 
-def _unpack_tarfile(filename, extract_dir, *, filter=None):
+def _unpack_tarfile(filename, extract_dir, filter=None):
     """Unpack tar/tar.gz/tar.bz2/tar.xz `filename` to `extract_dir`
     """
     import tarfile  # late import for breaking circular dependency
@@ -946,7 +947,7 @@ def _find_unpack_format(filename):
                 return name
     return None
 
-def unpack_archive(filename, extract_dir=None, format=None, *, filter=None):
+def unpack_archive(filename, extract_dir=None, format=None, filter=None):
     """Unpack an archive.
 
     `filename` is the name of the archive.
@@ -980,7 +981,9 @@ def unpack_archive(filename, extract_dir=None, format=None, *, filter=None):
             raise ValueError("Unknown unpack format '{0}'".format(format))
 
         func = format_info[1]
-        func(filename, extract_dir, **dict(format_info[2]), **filter_kwargs)
+        combined_args = dict(format_info[2])
+        combine_args.extend(filter_kwargs)
+        func(filename, extract_dir, **combined_args)
     else:
         # we need to look at the registered unpackers supported extensions
         format = _find_unpack_format(filename)
@@ -997,9 +1000,10 @@ if hasattr(os, 'statvfs'):
 
     __all__.append('disk_usage')
     _ntuple_diskusage = collections.namedtuple('usage', 'total used free')
-    _ntuple_diskusage.total.__doc__ = 'Total space in bytes'
-    _ntuple_diskusage.used.__doc__ = 'Used space in bytes'
-    _ntuple_diskusage.free.__doc__ = 'Free space in bytes'
+    # Tuple is read only in Python2
+    # _ntuple_diskusage.total.__doc__ = 'Total space in bytes'
+    # _ntuple_diskusage.used.__doc__ = 'Used space in bytes'
+    # _ntuple_diskusage.free.__doc__ = 'Free space in bytes'
 
     def disk_usage(path):
         """Return disk usage statistics about the given path.
