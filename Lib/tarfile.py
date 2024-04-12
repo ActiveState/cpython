@@ -38,7 +38,12 @@ __credits__ = "Gustavo Niemeyer, Niels Gust\u00e4bel, Richard Townsend."
 #---------
 # Imports
 #---------
-from builtins import open as bltn_open
+# Fix for Python2, since it doesn't have the builtins module, and we 
+# can't import six.moves. I'm not really happy about this change, but
+# since this is Python2 I think it's the only way to make it work.
+# from builtins import open as bltn_open
+bltn_open = __builtins__.open
+
 import sys
 import os
 import io
@@ -273,7 +278,9 @@ def _safe_print(s):
     encoding = getattr(sys.stdout, 'encoding', None)
     if encoding is not None:
         s = s.encode(encoding, 'backslashreplace').decode(encoding)
-    print(s, end=' ')
+    # Change for Python2.7
+    # print(s, end=' ')
+    print s,
 
 
 class TarError(Exception):
@@ -736,30 +743,30 @@ class FilterError(TarError):
 class AbsolutePathError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__(f'member {tarinfo.name!r} has an absolute path')
+        super().__init__('member %s has an absolute path' % repr(tarinfo.name))
 
 class OutsideDestinationError(FilterError):
     def __init__(self, tarinfo, path):
         self.tarinfo = tarinfo
         self._path = path
-        super().__init__(f'{tarinfo.name!r} would be extracted to {path!r}, '
+        super().__init__('%s would be extracted to %s, ' % (repr(tarinfo.name),repr(path))
                          + 'which is outside the destination')
 
 class SpecialFileError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__(f'{tarinfo.name!r} is a special file')
+        super().__init__('%s is a special file' % (repr(tarinfo.name)))
 
 class AbsoluteLinkError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__(f'{tarinfo.name!r} is a link to an absolute path')
+        super().__init__('%s is a link to an absolute path' % (repr(tarinfo.name)))
 
 class LinkOutsideDestinationError(FilterError):
     def __init__(self, tarinfo, path):
         self.tarinfo = tarinfo
         self._path = path
-        super().__init__(f'{tarinfo.name!r} would link to {path!r}, '
+        super().__init__('%s would link to %s, ' % (repr(tarinfo.name),repr(path))
                          + 'which is outside the destination')
 
 def _get_filtered_attrs(member, dest_path, for_data=True):
@@ -831,13 +838,13 @@ def fully_trusted_filter(member, dest_path):
 def tar_filter(member, dest_path):
     new_attrs = _get_filtered_attrs(member, dest_path, False)
     if new_attrs:
-        return member.replace(**new_attrs, deep=False)
+        return member.replace(deep=False, **new_attrs)
     return member
 
 def data_filter(member, dest_path):
     new_attrs = _get_filtered_attrs(member, dest_path, True)
     if new_attrs:
-        return member.replace(**new_attrs, deep=False)
+        return member.replace(deep=False, **new_attrs)
     return member
 
 _NAMED_FILTERS = {
@@ -908,7 +915,7 @@ class TarInfo(object):
     def __repr__(self):
         return "<%s %r at %#x>" % (self.__class__.__name__,self.name,id(self))
 
-    def replace(self, *,
+    def replace(self,
                 name=_KEEP, mtime=_KEEP, mode=_KEEP, linkname=_KEEP,
                 uid=_KEEP, gid=_KEEP, uname=_KEEP, gname=_KEEP,
                 deep=True, _KEEP=_KEEP):
@@ -2050,7 +2057,7 @@ class TarFile(object):
                 tarinfo.devminor = os.minor(statres.st_rdev)
         return tarinfo
 
-    def list(self, verbose=True, *, members=None):
+    def list(self, verbose=True, members=None):
         """Print a table of contents to sys.stdout. If `verbose' is False, only
            the names of the members are printed. If it is True, an `ls -l'-like
            output is produced. `members' is optional and must be a subset of the
@@ -2088,7 +2095,7 @@ class TarFile(object):
                     _safe_print("link to " + tarinfo.linkname)
             print()
 
-    def add(self, name, arcname=None, recursive=True, exclude=None, *, filter=None):
+    def add(self, name, arcname=None, recursive=True, exclude=None, filter=None):
         """Add the file `name' to the archive. `name' may be any type of file
            (directory, fifo, symbolic link, etc.). If given, `arcname'
            specifies an alternative name for the file in the archive.
@@ -2190,9 +2197,9 @@ class TarFile(object):
         try:
             return _NAMED_FILTERS[filter]
         except KeyError:
-            raise ValueError(f"filter {filter!r} not found") from None
+            raise ValueError("filter %s not found" % (repr(filter)))
 
-    def extractall(self, path=".", members=None, *, numeric_owner=False,
+    def extractall(self, path=".", members=None, numeric_owner=False,
                    filter=None):
         """Extract all members from the archive to the current working
            directory and set owner, modification time and permissions on
@@ -2237,7 +2244,7 @@ class TarFile(object):
             except ExtractError as e:
                 self._handle_nonfatal_error(e)
 
-    def extract(self, member, path="", set_attrs=True, *, numeric_owner=False,
+    def extract(self, member, path="", set_attrs=True, numeric_owner=False,
                 filter=None):
         """Extract a member from the archive to the current working directory,
            using its full name. Its file information is extracted as accurately
@@ -2671,7 +2678,9 @@ class TarFile(object):
         """Provide an iterator object.
         """
         if self._loaded:
-            yield from self.members
+            # Fix for Python2
+            # yield from self.members
+            for x in self.members: yield x
             return
 
         # Yield items using TarFile's next() method.
@@ -2702,7 +2711,9 @@ class TarFile(object):
         """Write debugging output to sys.stderr.
         """
         if level <= self.debug:
-            print(msg, file=sys.stderr)
+            # Fix for Python2
+            # print(msg, file=sys.stderr)
+            print >>sys.stderr, msg
 
     def __enter__(self):
         self._check()
@@ -2769,7 +2780,9 @@ def main():
         if is_tarfile(src):
             with open(src, 'r') as tar:
                 tar.getmembers()
-                print(tar.getmembers(), file=sys.stderr)
+                # Fix for Python2
+                # print(tar.getmembers(), file=sys.stderr)
+                print >>sys.stderr, tar.getmembers()
             if args.verbose:
                 print('{!r} is a tar archive.'.format(src))
         else:
