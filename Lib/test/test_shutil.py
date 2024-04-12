@@ -1,7 +1,7 @@
 # Copyright (C) 2003 Python Software Foundation
 
 import unittest
-import unittest.mock
+# import unittest.mock
 import shutil
 import tempfile
 import sys
@@ -10,22 +10,25 @@ import os
 import os.path
 import errno
 import functools
-import pathlib
+# import pathlib
 import subprocess
-from contextlib import ExitStack
+# from contextlib import ExitStack
 from shutil import (make_archive,
                     register_archive_format, unregister_archive_format,
-                    get_archive_formats, Error, unpack_archive,
-                    register_unpack_format, RegistryError,
-                    unregister_unpack_format, get_unpack_formats,
-                    SameFileError)
+                    # get_archive_formats, Error, unpack_archive,
+                    get_archive_formats, Error,
+                    # register_unpack_format, RegistryError,
+                    # unregister_unpack_format, get_unpack_formats,
+                    # SameFileError)
+                    )
 import tarfile
 import zipfile
 import warnings
-import pathlib
+# import pathlib
 
 from test import support
-from test.support import TESTFN, FakePath
+# from test.support import TESTFN, FakePath
+from test.support import TESTFN
 
 TESTFN2 = TESTFN + "2"
 
@@ -403,7 +406,7 @@ class TestShutil(unittest.TestCase):
         def make_chflags_raiser(err):
             ex = OSError()
 
-            def _chflags_raiser(path, flags, *, follow_symlinks=True):
+            def _chflags_raiser(path, flags, follow_symlinks=True):
                 ex.errno = err
                 raise ex
             return _chflags_raiser
@@ -454,7 +457,7 @@ class TestShutil(unittest.TestCase):
         finally:
             os.setxattr = orig_setxattr
         # the source filesystem not supporting xattrs should be ok, too.
-        def _raise_on_src(fname, *, follow_symlinks=True):
+        def _raise_on_src(fname, follow_symlinks=True):
             if fname == src:
                 raise OSError(errno.ENOTSUP, 'Operation not supported')
             return orig_listxattr(fname, follow_symlinks=follow_symlinks)
