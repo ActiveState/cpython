@@ -42,7 +42,7 @@ __credits__ = "Gustavo Niemeyer, Niels Gust\u00e4bel, Richard Townsend."
 # can't import six.moves. I'm not really happy about this change, but
 # since this is Python2 I think it's the only way to make it work.
 # from builtins import open as bltn_open
-bltn_open = __builtins__.open
+bltn_open = __builtins__["open"]
 
 import sys
 import os
