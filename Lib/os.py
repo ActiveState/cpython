@@ -133,13 +133,14 @@ SEEK_END = 2
 # Super directory utilities.
 # (Inspired by Eric Raymond; the doc strings are mostly his)
 
-def makedirs(name, mode=0777):
-    """makedirs(path [, mode=0777])
+def makedirs(name, mode=0o777, exist_ok=False):
+    """makedirs(name [, mode=0o777][, exist_ok=False])
 
-    Super-mkdir; create a leaf directory and all intermediate ones.
-    Works like mkdir, except that any intermediate path segment (not
-    just the rightmost) will be created if it does not exist.  This is
-    recursive.
+    Super-mkdir; create a leaf directory and all intermediate ones.  Works like
+    mkdir, except that any intermediate path segment (not just the rightmost)
+    will be created if it does not exist. If the target directory already
+    exists, raise an OSError if exist_ok is False. Otherwise no exception is
+    raised.  This is recursive.
 
     """
     head, tail = path.split(name)
@@ -147,14 +148,22 @@ def makedirs(name, mode=0777):
         head, tail = path.split(head)
     if head and tail and not path.exists(head):
         try:
-            makedirs(head, mode)
-        except OSError, e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                raise
-        if tail == curdir:           # xxx/newdir/. exists if xxx/newdir exists
+            makedirs(head, exist_ok=exist_ok)
+        except FileExistsError:
+            # Defeats race condition when another thread created the path
+            pass
+        cdir = curdir
+        if isinstance(tail, bytes):
+            cdir = bytes(curdir, 'ASCII')
+        if tail == cdir:           # xxx/newdir/. exists if xxx/newdir exists
             return
-    mkdir(name, mode)
+    try:
+        mkdir(name, mode)
+    except OSError:
+        # Cannot rely on checking for EEXIST, since the operating system
+        # could give priority to other errors like EACCES or EROFS
+        if not exist_ok or not path.isdir(name):
+            raise
 
 def removedirs(name):
     """removedirs(path)
