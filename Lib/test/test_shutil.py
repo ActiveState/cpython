@@ -42,7 +42,7 @@ except ImportError:
 
 def python2_makedirs(*args, **kwargs):
     try:
-        os.makedirs(args, kwargs)
+        os.makedirs(*args, **kwargs)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
