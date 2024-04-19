@@ -40,6 +40,13 @@ try:
 except ImportError:
     UID_GID_SUPPORT = False
 
+def python2_makedirs(*args, **kwargs):
+    try:
+        os.makedirs(args, kwargs)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
 def _fake_rename(*args, **kwargs):
     # Pretend the destination path is on a different filesystem.
     raise OSError(getattr(errno, 'EXDEV', 18), "Invalid cross-device link")
@@ -1006,7 +1013,7 @@ class TestShutil(unittest.TestCase):
         # creating something to tar
         root_dir = self.mkdtemp()
         dist = os.path.join(root_dir, base_dir)
-        os.makedirs(dist, exist_ok=True)
+        python2_makedirs(dist, exist_ok=True)
         write_file((dist, 'file1'), 'xxx')
         write_file((dist, 'file2'), 'xxx')
         os.mkdir(os.path.join(dist, 'sub'))
@@ -1852,83 +1859,6 @@ class TestCopyFile(unittest.TestCase):
         finally:
             os.rmdir(dst_dir)
 
-class TermsizeTests(unittest.TestCase):
-    def test_does_not_crash(self):
-        """Check if get_terminal_size() returns a meaningful value.
-
-        There's no easy portable way to actually check the size of the
-        terminal, so let's check if it returns something sensible instead.
-        """
-        size = shutil.get_terminal_size()
-        self.assertGreaterEqual(size.columns, 0)
-        self.assertGreaterEqual(size.lines, 0)
-
-    def test_os_environ_first(self):
-        "Check if environment variables have precedence"
-
-        with support.EnvironmentVarGuard() as env:
-            env['COLUMNS'] = '777'
-            del env['LINES']
-            size = shutil.get_terminal_size()
-        self.assertEqual(size.columns, 777)
-
-        with support.EnvironmentVarGuard() as env:
-            del env['COLUMNS']
-            env['LINES'] = '888'
-            size = shutil.get_terminal_size()
-        self.assertEqual(size.lines, 888)
-
-    def test_bad_environ(self):
-        with support.EnvironmentVarGuard() as env:
-            env['COLUMNS'] = 'xxx'
-            env['LINES'] = 'yyy'
-            size = shutil.get_terminal_size()
-        self.assertGreaterEqual(size.columns, 0)
-        self.assertGreaterEqual(size.lines, 0)
-
-    @unittest.skipUnless(os.isatty(sys.__stdout__.fileno()), "not on tty")
-    @unittest.skipUnless(hasattr(os, 'get_terminal_size'),
-                         'need os.get_terminal_size()')
-    def test_stty_match(self):
-        """Check if stty returns the same results ignoring env
-
-        This test will fail if stdin and stdout are connected to
-        different terminals with different sizes. Nevertheless, such
-        situations should be pretty rare.
-        """
-        try:
-            size = subprocess.check_output(['stty', 'size']).decode().split()
-        except (FileNotFoundError, PermissionError,
-                subprocess.CalledProcessError):
-            self.skipTest("stty invocation failed")
-        expected = (int(size[1]), int(size[0])) # reversed order
-
-        with support.EnvironmentVarGuard() as env:
-            del env['LINES']
-            del env['COLUMNS']
-            actual = shutil.get_terminal_size()
-
-        self.assertEqual(expected, actual)
-
-    def test_fallback(self):
-        with support.EnvironmentVarGuard() as env:
-            del env['LINES']
-            del env['COLUMNS']
-
-            # sys.__stdout__ has no fileno()
-            with support.swap_attr(sys, '__stdout__', None):
-                size = shutil.get_terminal_size(fallback=(10, 20))
-            self.assertEqual(size.columns, 10)
-            self.assertEqual(size.lines, 20)
-
-            # sys.__stdout__ is not a terminal on Unix
-            # or fileno() not in (0, 1, 2) on Windows
-            with open(os.devnull, 'w') as f, \
-                 support.swap_attr(sys, '__stdout__', f):
-                size = shutil.get_terminal_size(fallback=(30, 40))
-            self.assertEqual(size.columns, 30)
-            self.assertEqual(size.lines, 40)
-
 
 class PublicAPITests(unittest.TestCase):
     """Ensures that the correct values are exposed in the public API."""
@@ -1942,7 +1872,7 @@ class PublicAPITests(unittest.TestCase):
                       'unregister_archive_format', 'get_unpack_formats',
                       'register_unpack_format', 'unregister_unpack_format',
                       'unpack_archive', 'ignore_patterns', 'chown', 'which',
-                      'get_terminal_size', 'SameFileError']
+                      'SameFileError']
         if hasattr(os, 'statvfs') or os.name == 'nt':
             target_api.append('disk_usage')
         self.assertEqual(set(shutil.__all__), set(target_api))
