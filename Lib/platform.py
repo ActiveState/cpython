@@ -979,10 +979,10 @@ def _follow_symlinks(filepath):
     """ In case filepath is a symlink, follow it until a
         real file is reached.
     """
-    filepath = _abspath(filepath)
+    filepath = os.path.abspath(filepath)
     while os.path.islink(filepath):
         filepath = os.path.normpath(
-            os.path.join(os.path.dirname(filepath),os.readlink(filepath)))
+            os.path.join(os.path.dirname(filepath), os.readlink(filepath)))
     return filepath
 
 def _syscmd_uname(option,default=''):
