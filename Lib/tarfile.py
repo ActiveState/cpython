@@ -213,7 +213,8 @@ def itn(n, digits=8, format=DEFAULT_FORMAT):
     # number.
     n = int(n)
     if 0 <= n < 8 ** (digits - 1):
-        s = bytes("%0*o" % (digits - 1, n), "ascii") + NUL
+        # s = bytes("%0*o" % (digits - 1, n), "ascii") + NUL
+        s = bytes("%0*o" % (digits - 1, n)) + NUL
     elif format == GNU_FORMAT and -256 ** (digits - 1) <= n < 256 ** (digits - 1):
         if n >= 0:
             s = bytearray([0o200])
@@ -1125,7 +1126,8 @@ class TarInfo(object):
 
         buf = struct.pack("%ds" % BLOCKSIZE, b"".join(parts))
         chksum = calc_chksums(buf[-BLOCKSIZE:])[0]
-        buf = buf[:-364] + bytes("%06o\0" % chksum, "ascii") + buf[-357:]
+        # buf = buf[:-364] + bytes("%06o\0" % chksum, "ascii") + buf[-357:]
+        buf = buf[:-364] + bytes("%06o\0" % chksum) + buf[-357:]
         return buf
 
     @staticmethod
