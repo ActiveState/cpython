@@ -15,11 +15,11 @@ import subprocess
 # from contextlib import ExitStack
 from shutil import (make_archive,
                     register_archive_format, unregister_archive_format,
-                    # get_archive_formats, Error, unpack_archive,
+                    get_archive_formats, Error, unpack_archive,
                     get_archive_formats, Error,
-                    # register_unpack_format, RegistryError,
-                    # unregister_unpack_format, get_unpack_formats,
-                    # SameFileError)
+                    register_unpack_format, RegistryError,
+                    unregister_unpack_format, get_unpack_formats,
+                    SameFileError
                     )
 import tarfile
 import zipfile
