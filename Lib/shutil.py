@@ -982,7 +982,7 @@ def unpack_archive(filename, extract_dir=None, format=None, filter=None):
 
         func = format_info[1]
         combined_args = dict(format_info[2])
-        combine_args.extend(filter_kwargs)
+        combined_args.update(filter_kwargs)
         func(filename, extract_dir, **combined_args)
     else:
         # we need to look at the registered unpackers supported extensions
