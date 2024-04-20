@@ -44,6 +44,7 @@ __credits__ = "Gustavo Niemeyer, Niels Gust\u00e4bel, Richard Townsend."
 # from builtins import open as bltn_open
 bltn_open = __builtins__["open"]
 
+import ctypes
 import sys
 import os
 import io
@@ -479,7 +480,8 @@ class _Stream:
                 self.fileobj.write(self.buf)
                 self.buf = b""
                 if self.comptype == "gz":
-                    self.fileobj.write(struct.pack("<L", self.crc))
+                    # This is a hack, for some reason our CRCs are coming back negative
+                    self.fileobj.write(struct.pack("<L", ctypes.c_uint32(self.crc).value))
                     self.fileobj.write(struct.pack("<L", self.pos & 0xffffFFFF))
         finally:
             if not self._extfileobj:
