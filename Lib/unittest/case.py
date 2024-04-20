@@ -861,6 +861,38 @@ class TestCase(object):
 
         self.fail(self._formatMessage(msg, standardMsg))
 
+    def assertCountEqual(self, first, second, msg=None):
+        """Asserts that two iterables have the same elements, the same number of
+        times, without regard to order.
+
+            self.assertEqual(Counter(list(first)),
+                             Counter(list(second)))
+
+         Example:
+            - [0, 1, 1] and [1, 0, 1] compare equal.
+            - [0, 0, 1] and [0, 1] compare unequal.
+
+        """
+        first_seq, second_seq = list(first), list(second)
+        try:
+            first = collections.Counter(first_seq)
+            second = collections.Counter(second_seq)
+        except TypeError:
+            # Handle case with unhashable elements
+            differences = _count_diff_all_purpose(first_seq, second_seq)
+        else:
+            if first == second:
+                return
+            differences = _count_diff_hashable(first_seq, second_seq)
+
+        if differences:
+            standardMsg = 'Element counts were not equal:\n'
+            lines = ['First has %d, Second has %d:  %r' % diff for diff in differences]
+            diffMsg = '\n'.join(lines)
+            standardMsg = self._truncateMessage(standardMsg, diffMsg)
+            msg = self._formatMessage(msg, standardMsg)
+            self.fail(msg)
+
     def assertItemsEqual(self, expected_seq, actual_seq, msg=None):
         """An unordered sequence specific comparison. It asserts that
         actual_seq and expected_seq have the same element counts.
