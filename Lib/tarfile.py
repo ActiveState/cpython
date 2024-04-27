@@ -459,7 +459,7 @@ class _Stream:
                 if mode == "r":
                     self.dbuf = b""
                     self.cmp = bz2.BZ2Decompressor()
-                    self.exception = OSError
+                    self.exception = IOError
                 else:
                     self.cmp = bz2.BZ2Compressor()
 
@@ -857,7 +857,7 @@ class ExFileObject(io.BufferedReader):
     def __init__(self, tarfile, tarinfo):
         fileobj = _FileInFile(tarfile.fileobj, tarinfo.offset_data,
                 tarinfo.size, tarinfo.sparse)
-        super().__init__(fileobj)
+        super(ExFileObject,self).__init__(fileobj)
 #class ExFileObject
 
 
@@ -871,30 +871,30 @@ class FilterError(TarError):
 class AbsolutePathError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__('member {} has an absolute path' % repr(tarinfo.name))
+        super(AbsolutePathError, self).__init__('member {} has an absolute path' % repr(tarinfo.name))
 
 class OutsideDestinationError(FilterError):
     def __init__(self, tarinfo, path):
         self.tarinfo = tarinfo
         self._path = path
-        super().__init__('{} would be extracted to {}, ' % (repr(tarinfo.name),repr(path))
+        super(OutsideDestinationError, self).__init__('{} would be extracted to {}, ' % (repr(tarinfo.name),repr(path))
                          + 'which is outside the destination')
 
 class SpecialFileError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__('{} is a special file' % (repr(tarinfo.name)))
+        super(SpecialFileError, self).__init__('{} is a special file' % (repr(tarinfo.name)))
 
 class AbsoluteLinkError(FilterError):
     def __init__(self, tarinfo):
         self.tarinfo = tarinfo
-        super().__init__('{} is a link to an absolute path' % (repr(tarinfo.name)))
+        super(AbsoluteLinkError, self).__init__('{} is a link to an absolute path' % (repr(tarinfo.name)))
 
 class LinkOutsideDestinationError(FilterError):
     def __init__(self, tarinfo, path):
         self.tarinfo = tarinfo
         self._path = path
-        super().__init__('{} would link to {}, ' % (repr(tarinfo.name),repr(path))
+        super(LinkOutsideDestinationError, self).__init__('{} would link to {}, ' % (repr(tarinfo.name),repr(path))
                          + 'which is outside the destination')
 
 def _get_filtered_attrs(member, dest_path, for_data=True):

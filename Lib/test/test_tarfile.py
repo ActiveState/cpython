@@ -769,7 +769,7 @@ class LongnameTest(ReadTest):
         offset = self.tar.getmember(longname).offset
         fobj = open(tarname)
         fobj.seek(offset)
-        tarinfo = tarfile.TarInfo.frombuf(fobj.read(512))
+        tarinfo = tarfile.TarInfo.frombuf(fobj.read(512),"ascii","ignore")
         self.assertEqual(tarinfo.type, self.longnametype)
 
 
