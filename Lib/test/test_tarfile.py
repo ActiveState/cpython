@@ -224,12 +224,12 @@ class ListTest(ReadTest, unittest.TestCase):
         self.assertIn('ustar/dirtype/', out)
         self.assertIn('ustar/dirtype-with-size/', out)
         # Make sure it is able to print non-ASCII characters
-        self.assertIn('ustar/umlauts-'
-                      '\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
-        self.assertIn('misc/regtype-hpux-signed-chksum-'
-                      '\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
-        self.assertIn('misc/regtype-old-v7-signed-chksum-'
-                      '\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
+        self.assertIn(u'ustar/umlauts-'
+                      u'\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
+        self.assertIn(u'misc/regtype-hpux-signed-chksum-'
+                      u'\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
+        self.assertIn(u'misc/regtype-old-v7-signed-chksum-'
+                      u'\xc4\xd6\xdc\xe4\xf6\xfc\xdf', out)
         # Make sure it prints files separated by one newline without any
         # 'ls -l'-like accessories if verbose flag is not being used
         # ...
@@ -1495,7 +1495,7 @@ class UstarUnicodeTest(unittest.TestCase):
         try:
             tarinfo = tarfile.TarInfo()
 
-            tarinfo.name = "\xe4\xf6\xfc"
+            tarinfo.name = u"\xe4\xf6\xfc"
             if self.format == tarfile.PAX_FORMAT:
                 self.assertRaises(UnicodeError, tar.addfile, tarinfo)
             else:
