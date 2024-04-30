@@ -213,6 +213,7 @@ class ListTest(ReadTest, unittest.TestCase):
         with test_support.captured_stdout() as t:
             self.tar.list(verbose=False)
         out = t.getvalue()
+        print "FredTest out", repr(out)
         self.assertIn('ustar/conttype', out)
         self.assertIn('ustar/regtype', out)
         self.assertIn('ustar/lnktype', out)
@@ -769,7 +770,7 @@ class LongnameTest(ReadTest):
         offset = self.tar.getmember(longname).offset
         fobj = open(tarname)
         fobj.seek(offset)
-        tarinfo = tarfile.TarInfo.frombuf(fobj.read(512),"ascii","ignore")
+        tarinfo = tarfile.TarInfo.frombuf(fobj.read(512))
         self.assertEqual(tarinfo.type, self.longnametype)
 
 

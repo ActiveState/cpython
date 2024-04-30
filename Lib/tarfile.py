@@ -1099,7 +1099,7 @@ class TarInfo(object):
 
         return info
 
-    def tobuf(self, format=DEFAULT_FORMAT, encoding=ENCODING, errors="ignore"):
+    def tobuf(self, format=DEFAULT_FORMAT, encoding=ENCODING, errors="strict"):
         """Return a tar header as a string of 512 byte blocks.
         """
         info = self.get_info()
@@ -1148,6 +1148,7 @@ class TarInfo(object):
            represented this way, prepend a pax extended header sequence
            with supplement information.
         """
+        # print "FredStartOfCreate_pax_header"
         info["magic"] = POSIX_MAGIC
         pax_headers = self.pax_headers.copy()
 
@@ -1165,6 +1166,7 @@ class TarInfo(object):
             try:
                 info[name].encode("ascii", "strict")
             except UnicodeEncodeError:
+                # print "FredUnicodeError",info[name]
                 pax_headers[hname] = info[name]
                 continue
 
@@ -1186,10 +1188,12 @@ class TarInfo(object):
 
         # Create a pax extended header if necessary.
         if pax_headers:
+            # print "Fred Creating Pax Header"
             buf = self._create_pax_generic_header(pax_headers, XHDTYPE, encoding)
         else:
             buf = b""
 
+        # print "FredEndOfCreatePaxHeader"
         return buf + self._create_header(info, USTAR_FORMAT, "ascii", "replace")
 
     @classmethod
@@ -1336,7 +1340,7 @@ class TarInfo(object):
                 cls._create_payload(records)
 
     @classmethod
-    def frombuf(cls, buf, encoding, errors):
+    def frombuf(cls, buf, encoding=ENCODING, errors="strict"):
         """Construct a TarInfo object from a 512 byte bytes object.
         """
         if len(buf) == 0:
@@ -2078,8 +2082,14 @@ class TarFile(object):
            than once in the archive, its last occurrence is assumed to be the
            most up-to-date version.
         """
+        # If we are handed a str, we need to convert it to a Unicode so we can compare
+        # the values we have in "members" which are Unicodes
+        if isinstance(name,str):
+            name = codecs.decode(name,self.encoding,self.errors)
+
         tarinfo = self._getmember(name)
         if tarinfo is None:
+            # print "Fred failed to getmember, members of tarfile", repr(name),repr( self.members)
             raise KeyError("filename %r not found" % name)
         return tarinfo
 
@@ -2742,6 +2752,16 @@ class TarFile(object):
         """Find an archive member by name from bottom to top.
            If tarinfo is given, it is used as the starting point.
         """
+        # print "Fred _getmember start", repr(name)
+
+        # FIX: In Python2 all strings are NOT unicode, so we need to convert so we can compare
+        # FIX: But I'm not sure that converting it here is correct
+        # The reason for these changes was because we can't compare a Unicode and Str type offset
+        # String, and the member names are stored as Unicodes. The name value seems to come in
+        # as a str type, and so we get failures on camparison
+#        if isinstance(name,str):
+#            name = codecs.decode(name, "ascii", "backslashreplace")
+
         # Ensure that all members have been loaded.
         members = self.getmembers()
 
@@ -2771,12 +2791,17 @@ class TarFile(object):
             else:
                 member_name = member.name
 
+            # print "Fred _getmember comparing",repr(name), "|", repr(member_name), "|"
             if name == member_name:
+
+                # print "Fred _getmember return1"
                 return member
 
         if skipping:
             # Starting point was not found
             raise ValueError(tarinfo)
+
+        # print "Fred _getmember return2"
 
     def _load(self):
         """Read through the entire archive file and look for readable
