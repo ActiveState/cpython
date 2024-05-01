@@ -916,6 +916,22 @@ class ExFileObject(object):
             if not line:
                 break
             yield line
+
+    def __enter__(self):
+        #INFO: This was used in Python3.6, but we aren't based off io.BufferedReader in Python2
+        # self._check()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if type is None:
+            self.close()
+        else:
+            # An exception occurred. We must not call close() because
+            # it would try to write end-of-archive blocks and padding.
+            #INFO: This was used in Python3.6, but we aren't based off io.BufferedReader in Python2
+            # if not self._extfileobj:
+            #     self.fileobj.close()
+            self.close()
 #class ExFileObject
 
 #------------------
