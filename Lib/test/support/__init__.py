@@ -56,6 +56,7 @@ __all__ = ["Error", "TestFailed", "TestDidNotRun", "ResourceDenied", "import_mod
            "find_unused_port", "bind_port",
            "fcmp", "have_unicode", "is_jython", "TESTFN", "HOST", "FUZZ",
            "SAVEDCWD", "temp_cwd", "findfile", "sortdict", "check_syntax_error",
+           "create_empty_file",
            "open_urlresource", "check_warnings", "check_no_warnings", "check_py3k_warnings",
            "CleanImport", "EnvironmentVarGuard", "captured_output",
            "captured_stdout", "TransientResource", "transient_internet",
@@ -872,6 +873,11 @@ def findfile(file, subdir=None):
         fn = os.path.join(dn, file)
         if os.path.exists(fn): return fn
     return file
+
+def create_empty_file(filename):
+    """Create an empty file. If the file already exists, truncate it."""
+    fd = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    os.close(fd)
 
 def sortdict(dict):
     "Like repr(dict), but in sorted order."
