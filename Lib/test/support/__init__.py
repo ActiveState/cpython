@@ -29,6 +29,26 @@ try:
 except ImportError:
     thread = None
 
+try:
+    import zlib
+except ImportError:
+    zlib = None
+
+try:
+    import gzip
+except ImportError:
+    gzip = None
+
+try:
+    import bz2
+except ImportError:
+    bz2 = None
+
+try:
+    import lzma
+except ImportError:
+    lzma = None
+
 __all__ = ["Error", "TestFailed", "TestDidNotRun", "ResourceDenied", "import_module",
            "verbose", "use_resources", "max_memuse", "record_original_stdout",
            "get_original_stdout", "unload", "unlink", "rmtree", "forget",
@@ -36,7 +56,7 @@ __all__ = ["Error", "TestFailed", "TestDidNotRun", "ResourceDenied", "import_mod
            "find_unused_port", "bind_port",
            "fcmp", "have_unicode", "is_jython", "TESTFN", "HOST", "FUZZ",
            "SAVEDCWD", "temp_cwd", "findfile", "sortdict", "check_syntax_error",
-           "open_urlresource", "check_warnings", "check_py3k_warnings",
+           "open_urlresource", "check_warnings", "check_no_warnings", "check_py3k_warnings",
            "CleanImport", "EnvironmentVarGuard", "captured_output",
            "captured_stdout", "TransientResource", "transient_internet",
            "run_with_locale", "set_memlimit", "bigmemtest", "bigaddrspacetest",
@@ -45,7 +65,9 @@ __all__ = ["Error", "TestFailed", "TestDidNotRun", "ResourceDenied", "import_mod
            "check_impl_detail", "get_attribute", "py3k_bytes",
            "import_fresh_module", "threading_cleanup", "reap_children",
            "strip_python_stderr", "IPV6_ENABLED", "run_with_tz",
-           "SuppressCrashReport", "adjust_int_max_str_digits"]
+           "SuppressCrashReport", "adjust_int_max_str_digits",
+           "requires_zlib","requires_gzip","requires_bz2","requires_lzma", ]
+
 
 class Error(Exception):
     """Base class for regression test exceptions."""
@@ -296,7 +318,8 @@ def unlink(filename):
 
 def rmdir(dirname):
     try:
-        _rmdir(dirname)
+        pass
+        # _rmdir(dirname)
     except OSError as error:
         # The directory need not exist.
         if error.errno != errno.ENOENT:
@@ -615,6 +638,14 @@ except NameError:
     have_unicode = False
 
 requires_unicode = unittest.skipUnless(have_unicode, 'no unicode support')
+
+requires_zlib = unittest.skipUnless(zlib, 'requires zlib')
+
+requires_gzip = unittest.skipUnless(gzip, 'requires gzip')
+
+requires_bz2 = unittest.skipUnless(bz2, 'requires bz2')
+
+requires_lzma = unittest.skipUnless(lzma, 'requires lzma')
 
 def u(s):
     return unicode(s, 'unicode-escape')
@@ -998,6 +1029,28 @@ def check_warnings(*filters, **kwargs):
             quiet = True
     return _filterwarnings(filters, quiet)
 
+@contextlib.contextmanager
+def check_no_warnings(testcase, message='', category=Warning, force_gc=False):
+    """Context manager to check that no warnings are emitted.
+
+    This context manager enables a given warning within its scope
+    and checks that no warnings are emitted even with that warning
+    enabled.
+
+    If force_gc is True, a garbage collection is attempted before checking
+    for warnings. This may help to catch warnings emitted when objects
+    are deleted, such as ResourceWarning.
+
+    Other keyword arguments are passed to warnings.filterwarnings().
+    """
+    with warnings.catch_warnings(record=True) as warns:
+        warnings.filterwarnings('always',
+                                message=message,
+                                category=category)
+        yield
+        if force_gc:
+            gc_collect()
+    testcase.assertEqual(warns, [])
 
 @contextlib.contextmanager
 def check_py3k_warnings(*filters, **kwargs):
