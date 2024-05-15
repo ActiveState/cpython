@@ -1,0 +1,50 @@
+.. bpo: 32056
+.. date: 2018-03-18
+.. nonce: 
+.. release date: 2024-05-15
+.. section: Core and Builtins
+
+CVE-2017-18207
+
+The Wave_read._read_fmt_chunk function in Lib/wave.py in Python through 3.6.4 does not ensure a 
+nonzero channel value, which allows attackers to cause a denial of service (divide-by-zero and 
+exception) via a crafted wav format audio file. NOTE: the vendor disputes this issue because 
+Python applications "need to be prepared to handle a wide variety of exceptions.
+
+.. bpo: none
+.. date: 2022-10-07
+.. nonce: 
+.. release date: 2024-05-15
+.. section: Core and Builtins
+
+CVE-2022-45061
+
+An issue was discovered in Python before 3.11.1. An unnecessary quadratic algorithm exists in one 
+path when processing some inputs to the IDNA (RFC 3490) decoder, such that a crafted, unreasonably 
+long name being presented to the decoder could lead to a CPU denial of service. Hostnames are often 
+supplied by remote servers that could be controlled by a malicious actor; in such a scenario, they 
+could trigger excessive CPU consumption on the client attempting to make use of an attacker-supplied 
+supposed hostname. For example, the attack payload could be placed in the Location header of an 
+HTTP response with status code 302. A fix is planned in 3.11.1, 3.10.9, 3.9.16, 3.8.16, and 3.7.16.
+
+.. bpo: 39421
+.. date: 2020-01-23
+.. nonce: 
+.. release date: 2024-05-15
+.. section: Core and Builtins
+
+CVE-2022-48560
+
+A use-after-free exists in Python through 3.9 via heappushpop in heapq.
+
+.. bpo: 40791
+   .. date: 2020-12-14
+   .. nonce: 
+   .. release date: 2024-05-15
+   .. section: Core and Builtins
+
+CVE-2022-48566
+
+An issue was discovered in compare_digest in Lib/hmac.py in Python through 3.9.1. 
+Constant-time-defeating optimisations were possible in the accumulator variable in 
+hmac.compare_digest.
