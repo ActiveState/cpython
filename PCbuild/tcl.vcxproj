@@ -64,16 +64,6 @@
     <TclOpts Condition="$(Configuration) == 'Debug'">symbols</TclOpts>
     <TclDirs>INSTALLDIR="$(OutDir.TrimEnd(`\`))" INSTALL_DIR="$(OutDir.TrimEnd(`\`))"</TclDirs>
     <DebugFlags Condition="'$(Configuration)' == 'Debug'">DEBUGFLAGS="-wd4456 -wd4457 -wd4458 -wd4459 -wd4996"</DebugFlags>
-    <NMakeBuildCommandLine>setlocal
-@(ExpectedOutputs->'if not exist "%(FullPath)" goto build','
-')
-goto :eof
-:build
-set VCINSTALLDIR=$(VCInstallDir)
-cd /D "$(tclDir)win"
-nmake -f makefile.vc MACHINE=$(TclMachine) OPTS=$(TclOpts) $(TclDirs) $(DebugFlags) core shell dlls
-nmake -f makefile.vc MACHINE=$(TclMachine) OPTS=$(TclOpts) $(TclDirs) $(DebugFlags) install-binaries install-libraries
-</NMakeBuildCommandLine>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
