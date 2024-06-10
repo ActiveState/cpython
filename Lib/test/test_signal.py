@@ -1,5 +1,5 @@
 import unittest
-from test import test_support
+from test import test_support, support
 from contextlib import closing
 import gc
 import pickle
@@ -235,7 +235,7 @@ class WindowsSignalTests(unittest.TestCase):
 class WakeupFDTests(unittest.TestCase):
 
     def test_invalid_fd(self):
-        fd = test_support.make_bad_fd()
+        fd = support.make_bad_fd()
         self.assertRaises(ValueError, signal.set_wakeup_fd, fd)
 
 
