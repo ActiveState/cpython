@@ -106,10 +106,6 @@ struct py_ssl_library_code {
 #  define PY_OPENSSL_1_1_API 1
 #endif
 
-#if (OPENSSL_VERSION_NUMBER >= 0x30300000L) && !defined(LIBRESSL_VERSION_NUMBER)
-#  define OPENSSL_VERSION_3_3 1
-#endif
-
 /* LibreSSL 2.7.0 provides necessary OpenSSL 1.1.0 APIs */
 #if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x2070000fL
 #  define PY_OPENSSL_1_1_API 1
@@ -163,16 +159,6 @@ struct py_ssl_library_code {
 /* OpenSSL 1.0.2 and LibreSSL needs extra code for locking */
 #if !defined(OPENSSL_VERSION_1_1) && defined(WITH_THREAD)
 #define HAVE_OPENSSL_CRYPTO_LOCK
-#endif
-
-/* OpenSSL 1.1+ allows locking X509_STORE, 1.0.2 doesn't. */
-#ifdef OPENSSL_VERSION_1_1
-#define HAVE_OPENSSL_X509_STORE_LOCK
-#endif
-
-/* OpenSSL 3.3 added the X509_STORE_get1_objects API */
-#ifdef OPENSSL_VERSION_3_3
-#define HAVE_OPENSSL_X509_STORE_GET1_OBJECTS 1
 #endif
 
 #if defined(OPENSSL_VERSION_1_1) && !defined(OPENSSL_NO_SSL2)
@@ -3518,15 +3504,7 @@ cert_store_stats(PySSLContext *self)
     int x509 = 0, crl = 0, ca = 0, i;
 
     store = SSL_CTX_get_cert_store(self->ctx);
-    #if HAVE_OPENSSL_X509_STORE_GET1_OBJECTS
-        objs = X509_STORE_get1_objects(store);
-        if (objs == NULL) {
-            PyErr_SetString(PyExc_MemoryError, "failed to query cert store");
-            return NULL;
-        }
-    #else
-        objs = X509_STORE_get0_objects(store);
-    #endif
+    objs = X509_STORE_get0_objects(store);
     for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
         obj = sk_X509_OBJECT_value(objs, i);
         switch (X509_OBJECT_get_type(obj)) {
@@ -3543,15 +3521,9 @@ cert_store_stats(PySSLContext *self)
                 /* Ignore X509_LU_FAIL, X509_LU_RETRY, X509_LU_PKEY.
                  * As far as I can tell they are internal states and never
                  * stored in a cert store */
-                /* Ignore enrecognized types */
                 break;
         }
     }
-
-#if HAVE_OPENSSL_X509_STORE_GET1_OBJECTS
-    sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
-#endif
-
     return Py_BuildValue("{sisisi}", "x509", x509, "crl", crl,
         "x509_ca", ca);
 }
@@ -3586,16 +3558,9 @@ get_ca_certs(PySSLContext *self, PyObject *args, PyObject *kwds)
     if ((rlist = PyList_New(0)) == NULL) {
         return NULL;
     }
+
     store = SSL_CTX_get_cert_store(self->ctx);
-#if HAVE_OPENSSL_X509_STORE_GET1_OBJECTS
-    objs = X509_STORE_get1_objects(store);
-    if (objs == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "failed to query cert store");
-        return NULL;
-    }
-#else
     objs = X509_STORE_get0_objects(store);
-#endif
     for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
         X509_OBJECT *obj;
         X509 *cert;
@@ -3623,15 +3588,9 @@ get_ca_certs(PySSLContext *self, PyObject *args, PyObject *kwds)
         }
         Py_CLEAR(ci);
     }
-    #if HAVE_OPENSSL_X509_STORE_GET1_OBJECTS
-        sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
-    #endif
     return rlist;
 
   error:
-#if HAVE_OPENSSL_X509_STORE_GET1_OBJECTS
-    sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
-#endif
     Py_XDECREF(ci);
     Py_XDECREF(rlist);
     return NULL;
@@ -4682,52 +4641,4 @@ init_ssl(void)
     if (r == NULL || PyModule_AddObject(m, "_OPENSSL_API_VERSION", r))
         return;
 }
-
-/* Shim of X509_STORE_get1_objects API from OpenSSL 3.3
- * Only available with the X509_STORE_lock() API */
-#if defined(HAVE_OPENSSL_X509_STORE_LOCK) && !defined(OPENSSL_VERSION_3_3)
-#define HAVE_OPENSSL_X509_STORE_GET1_OBJECTS 1
-
-static X509_OBJECT *x509_object_dup(const X509_OBJECT *obj)
-{
-    int ok;
-    X509_OBJECT *ret = X509_OBJECT_new();
-    if (ret == NULL) {
-        return NULL;
-    }
-    switch (X509_OBJECT_get_type(obj)) {
-        case X509_LU_X509:
-            ok = X509_OBJECT_set1_X509(ret, X509_OBJECT_get0_X509(obj));
-            break;
-        case X509_LU_CRL:
-            /* X509_OBJECT_get0_X509_CRL was not const-correct prior to 3.0.*/
-            ok = X509_OBJECT_set1_X509_CRL(
-                ret, X509_OBJECT_get0_X509_CRL((X509_OBJECT *)obj));
-            break;
-        default:
-            /* We cannot duplicate unrecognized types in a polyfill, but it is
-             * safe to leave an empty object. The caller will ignore it. */
-            ok = 1;
-            break;
-    }
-    if (!ok) {
-        X509_OBJECT_free(ret);
-        return NULL;
-    }
-    return ret;
-}
-
-static STACK_OF(X509_OBJECT) *
-X509_STORE_get1_objects(X509_STORE *store)
-{
-    STACK_OF(X509_OBJECT) *ret;
-    if (!X509_STORE_lock(store)) {
-        return NULL;
-    }
-    ret = sk_X509_OBJECT_deep_copy(X509_STORE_get0_objects(store),
-                                   x509_object_dup, X509_OBJECT_free);
-    X509_STORE_unlock(store);
-    return ret;
-}
-#endif
 
