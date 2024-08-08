@@ -30,6 +30,7 @@
   <Target Name="$$PYTHON_TARGET$$" Returns="@(PythonRuntime)">
     <ItemGroup>
       <_PythonRuntimeExe Include="$(PythonHome)\python*.dll" />
+      <_PythonRuntimeExe Include="$(PythonHome)\vcruntime*.dll" />
       <_PythonRuntimeExe Include="$(PythonHome)\python*.exe" Condition="$(IncludePythonExe) == 'true'" />
       <_PythonRuntimeExe>
         <Link>%(Filename)%(Extension)</Link>
