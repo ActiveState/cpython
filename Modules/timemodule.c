@@ -28,8 +28,8 @@
 #endif
 
 #ifdef HAVE_FTIME
-#if !defined(MS_WINDOWS) && !defined(PYOS_OS2)
 #include <sys/timeb.h>
+#if !defined(MS_WINDOWS) && !defined(PYOS_OS2)
 extern int ftime(struct timeb *);
 #endif /* MS_WINDOWS */
 #endif /* HAVE_FTIME */
