@@ -12,9 +12,10 @@
 #include <windows.h>
 
 // "activation context" magic - see dl_nt.c...
+#if HAVE_SXS
 extern ULONG_PTR _Py_ActivateActCtx();
 void _Py_DeactivateActCtx(ULONG_PTR cookie);
-
+#endif
 const struct filedescr _PyImport_DynLoadFiletab[] = {
 #ifdef _DEBUG
     {"_d.pyd", "rb", C_EXTENSION},
@@ -176,8 +177,10 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
         char pathbuf[260];
         LPTSTR dummy;
         unsigned int old_mode;
-        ULONG_PTR cookie = 0;
-        /* We use LoadLibraryEx so Windows looks for dependent DLLs
+#if HAVE_SXS
+	ULONG_PTR cookie = 0;
+#endif
+	/* We use LoadLibraryEx so Windows looks for dependent DLLs
             in directory of pathname first.  However, Windows95
             can sometimes not work correctly unless the absolute
             path is used.  If GetFullPathName() fails, the LoadLibrary
@@ -190,12 +193,16 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
                             sizeof(pathbuf),
                             pathbuf,
                             &dummy)) {
+#if HAVE_SXS
             ULONG_PTR cookie = _Py_ActivateActCtx();
+#endif
             /* XXX This call doesn't exist in Windows CE */
             hDLL = LoadLibraryEx(pathname, NULL,
                                  LOAD_WITH_ALTERED_SEARCH_PATH);
-            _Py_DeactivateActCtx(cookie);
-        }
+#if HAVE_SXS
+	    _Py_DeactivateActCtx(cookie);
+#endif
+	}
 
         /* restore old error mode settings */
         SetErrorMode(old_mode);

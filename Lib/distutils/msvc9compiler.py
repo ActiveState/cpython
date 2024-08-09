@@ -716,11 +716,12 @@ class MSVCCompiler(CCompiler) :
             if mfinfo is not None:
                 mffilename, mfid = mfinfo
                 out_arg = '-outputresource:%s;%s' % (output_filename, mfid)
-                try:
-                    self.spawn(['mt.exe', '-nologo', '-manifest',
+                if self.__version < 10:
+                    try:
+                        self.spawn(['mt.exe', '-nologo', '-manifest',
                                 mffilename, out_arg])
-                except DistutilsExecError, msg:
-                    raise LinkError(msg)
+                    except DistutilsExecError, msg:
+                        raise LinkError(msg)
         else:
             log.debug("skipping %s (up-to-date)", output_filename)
 

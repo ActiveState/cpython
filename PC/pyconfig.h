@@ -226,13 +226,18 @@ typedef int pid_t;
 #define Py_IS_FINITE(X) _finite(X)
 #define copysign _copysign
 
-#endif /* _MSC_VER */
+/* Side by Side assemblies supported in VS 2005 and VS 2008 but not 2010*/
+#if _MSC_VER >= 1400 && _MSC_VER < 1600
+#define HAVE_SXS 1
+#endif
 
 /* define some ANSI types that are not defined in earlier Win headers */
-#if defined(_MSC_VER) && _MSC_VER >= 1200
+#if _MSC_VER >= 1200
 /* This file only exists in VC 6.0 or higher */
 #include <basetsd.h>
 #endif
+
+#endif /* _MSC_VER */
 
 /* ------------------------------------------------------------------------*/
 /* The Borland compiler defines __BORLANDC__ */

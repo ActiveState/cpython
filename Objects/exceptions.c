@@ -2042,6 +2042,62 @@ static PyMethodDef functions[] = {
     if (PyDict_SetItemString(bdict, # TYPE, PyExc_ ## TYPE)) \
         Py_FatalError("Module dictionary insertion problem.");
 
+#ifdef MS_WINDOWS
+#include <Winsock2.h>
+/* The following constants were added to errno.h in VS2010 but have
+   preferred WSA equivalents. */
+#undef EADDRINUSE
+#undef EADDRNOTAVAIL
+#undef EAFNOSUPPORT
+#undef EALREADY
+#undef ECONNABORTED
+#undef ECONNREFUSED
+#undef ECONNRESET
+#undef EDESTADDRREQ
+#undef EHOSTUNREACH
+#undef EINPROGRESS
+#undef EISCONN
+#undef ELOOP
+#undef EMSGSIZE
+#undef ENETDOWN
+#undef ENETRESET
+#undef ENETUNREACH
+#undef ENOBUFS
+#undef ENOPROTOOPT
+#undef ENOTCONN
+#undef ENOTSOCK
+#undef EOPNOTSUPP
+#undef EPROTONOSUPPORT
+#undef EPROTOTYPE
+#undef ETIMEDOUT
+#undef EWOULDBLOCK
+
+#if defined(WSAEALREADY) && !defined(EALREADY)
+#define EALREADY WSAEALREADY
+#endif
+#if defined(WSAECONNABORTED) && !defined(ECONNABORTED)
+#define ECONNABORTED WSAECONNABORTED
+#endif
+#if defined(WSAECONNREFUSED) && !defined(ECONNREFUSED)
+#define ECONNREFUSED WSAECONNREFUSED
+#endif
+#if defined(WSAECONNRESET) && !defined(ECONNRESET)
+#define ECONNRESET WSAECONNRESET
+#endif
+#if defined(WSAEINPROGRESS) && !defined(EINPROGRESS)
+#define EINPROGRESS WSAEINPROGRESS
+#endif
+#if defined(WSAESHUTDOWN) && !defined(ESHUTDOWN)
+#define ESHUTDOWN WSAESHUTDOWN
+#endif
+#if defined(WSAETIMEDOUT) && !defined(ETIMEDOUT)
+#define ETIMEDOUT WSAETIMEDOUT
+#endif
+#if defined(WSAEWOULDBLOCK) && !defined(EWOULDBLOCK)
+#define EWOULDBLOCK WSAEWOULDBLOCK
+#endif
+#endif /* MS_WINDOWS */
+
 
 PyMODINIT_FUNC
 _PyExc_Init(void)
