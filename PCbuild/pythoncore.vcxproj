@@ -78,7 +78,6 @@
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
-      <BaseAddress>0x1e000000</BaseAddress>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

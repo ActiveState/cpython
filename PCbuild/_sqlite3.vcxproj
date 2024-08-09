@@ -64,9 +64,6 @@
       <AdditionalIncludeDirectories>$(sqlite3Dir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>MODULE_NAME="sqlite3";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <Link>
-      <BaseAddress>0x1e180000</BaseAddress>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="$(SQLITE3_DIR) != ''">
     <Link>
