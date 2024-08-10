@@ -1,0 +1,43 @@
+.. bpo: none
+.. date: 2024-08-08
+.. nonce:
+.. release date: 2024-08-08
+.. section: Core and Builtins
+
+Relocate vcruntime140.dll to Python executable folder.
+
+vcruntime140.dll has been moved to the same directory as Python.exe.
+
+.. bpo: none
+.. date: 2024-08-08
+.. nonce:
+.. release date: 2024-06-26
+.. section: Core and Builtins
+
+WSA Errors are handled on Unix 
+
+We now convert WSAE* errors to unix equvalents if they are not supported.
+
+.. bpo: 36778
+.. date: 2019-05-10
+.. nonce: 
+.. release date: 2024-06-06
+.. section: Core and Builtins
+
+Handle Windows code page 65001
+
+``cp65001`` encoding (Windows code page 65001) becomes an alias to ``utf_8``
+encoding.
+
+.. gh: 114315
+.. date: 2024-06-27
+.. nonce: 
+.. release date: 2024-08-08
+.. section: Core and Builtins
+
+CVE-2024-0397 Fix locking in cert_store_stats and get_ca_certs
+
+:meth:`ssl.SSLContext.cert_store_stats` and
+:meth:`ssl.SSLContext.get_ca_certs` now correctly lock access to the
+certificate store, when the :class:`ssl.SSLContext` is shared across
+multiple threads.

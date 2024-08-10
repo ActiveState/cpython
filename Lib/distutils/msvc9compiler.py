@@ -242,6 +242,9 @@ def get_build_version():
     i = i + len(prefix)
     s, rest = sys.version[i:].split(" ", 1)
     majorVersion = int(s[:-2]) - 6
+    if majorVersion >= 13:
+        # v13 was skipped and should be v14
+        majorVersion += 1
     minorVersion = int(s[2:3]) / 10.0
     # I don't think paths are affected by minor version in version 6
     if majorVersion == 6:
@@ -716,11 +719,12 @@ class MSVCCompiler(CCompiler) :
             if mfinfo is not None:
                 mffilename, mfid = mfinfo
                 out_arg = '-outputresource:%s;%s' % (output_filename, mfid)
-                try:
-                    self.spawn(['mt.exe', '-nologo', '-manifest',
+                if self.__version < 10:
+                    try:
+                        self.spawn(['mt.exe', '-nologo', '-manifest',
                                 mffilename, out_arg])
-                except DistutilsExecError, msg:
-                    raise LinkError(msg)
+                    except DistutilsExecError, msg:
+                        raise LinkError(msg)
         else:
             log.debug("skipping %s (up-to-date)", output_filename)
 
