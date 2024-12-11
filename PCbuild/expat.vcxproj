@@ -1,0 +1,115 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B5FD6F1D-129E-4BFF-9340-03606FAC7287}</ProjectGuid>
+  </PropertyGroup>
+
+  <Import Project="python.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Label="Configuration" Condition="$(Platform) == 'Win32'">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <Bitness>32</Bitness>
+    <ArchName>x86</ArchName>
+    <ExpatPlatform>VC-WIN32</ExpatPlatform>
+    <SupportSigning>true</SupportSigning>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Configuration" Condition="$(Platform) == 'x64'">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <Bitness>64</Bitness>
+    <ArchName>amd64</ArchName>
+    <ExpatPlatform>VC-WIN64A-masm</ExpatPlatform>
+    <SupportSigning>true</SupportSigning>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="pyproject.props" />
+
+  <PropertyGroup>
+    <IntDir>$(expatDir)\tmp$(Bitness)dll</IntDir>
+    <OutDir>$(expatOutDir)</OutDir>
+    <NMakeBuildCommandLine>setlocal
+set VCINSTALLDIR=$(VCInstallDir)
+if not exist "$(IntDir.TrimEnd('\'))" mkdir "$(IntDir.TrimEnd('\'))"
+cd /D "$(IntDir.TrimEnd('\'))"
+$(Perl) "$(expatDir)\configure" $(ExpatPlatform) no-asm
+nmake
+</NMakeBuildCommandLine>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <Target Name="_PatchUplink" BeforeTargets="Build">
+    <PropertyGroup>
+      <Uplink>$(expatDir)\ms\uplink.c</Uplink>
+      <BeforePatch>((h = GetModuleHandle(NULL)) == NULL)</BeforePatch>
+      <AfterPatch>((h = GetModuleHandleA("_ssl.pyd")) == NULL) if ((h = GetModuleHandleA("_ssl_d.pyd")) == NULL) if ((h = GetModuleHandle(NULL)) == NULL /*patched*/)</AfterPatch>
+    </PropertyGroup>
+    <Error Text="Cannot find $(Uplink)" Condition="!Exists($(Uplink))" />
+    <PropertyGroup>
+      <_Original>$([System.IO.File]::ReadAllText($(Uplink)))</_Original>
+      <_Patched>$(_Original.Replace($(BeforePatch), $(AfterPatch)))</_Patched>
+      <IsPatched>false</IsPatched>
+      <IsPatched Condition="$(_Patched) == $(_Original)">true</IsPatched>
+    </PropertyGroup>
+    <Message Text="$(Uplink) is already patched" Importance="normal" Condition="$(IsPatched)" />
+    <Message Text="Patching $(Uplink)" Importance="high" Condition="!$(IsPatched)" />
+    <WriteLinesToFile File="$(Uplink)"
+                      Lines="$(_Patched)"
+                      Overwrite="true"
+                      Encoding="ASCII"
+                      Condition="!$(IsPatched)" />
+  </Target>
+
+  <Target Name="_CopyToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <_Built Include="$(expatDir)\LICENSE" />
+      <_Built Include="$(IntDir)\libcrypto.lib;$(IntDir)\libcrypto-*.dll;$(IntDir)\libcrypto-*.pdb" />
+      <_Built Include="$(IntDir)\libssl.lib;$(IntDir)\libssl-*.dll;$(IntDir)\libssl-*.pdb" />
+      <_AppLink Include="$(expatDir)\ms\applink.c" />
+      <_Include Include="$(expatDir)\Include\expat\*.h" />
+      <_Include Include="$(IntDir)\include\expat\*.h" />
+    </ItemGroup>
+    <MakeDir Directories="$(expatOutDir)\include\expat" />
+    <Copy SourceFiles="@(_Built)" DestinationFolder="$(expatOutDir)" />
+    <Copy SourceFiles="@(_AppLink)" DestinationFolder="$(expatOutDir)\include" />
+    <Copy SourceFiles="@(_Include)" DestinationFolder="$(expatOutDir)\include\expat" />
+  </Target>
+
+  <Target Name="SignFiles" AfterTargets="Build" Condition="$(_SignCommand) != ''">
+    <ItemGroup>
+      <FilesToSign Include="$(expatOutDir)\lib*.dll" />
+    </ItemGroup>
+    <Exec Command="$(_SignCommand) %(FilesToSign.FullPath)" ContinueOnError="true" />
+  </Target>
+
+  <Target Name="Clean" />
+  <Target Name="CleanAll">
+    <Delete Files="$(TargetPath);$(BuildPath)$(tclDLLName)" />
+    <RemoveDir Directories="$(IntDir)" />
+  </Target>
+  
+  <Target Name="LocateNMake">
+    <PropertyGroup>
+      <OutputFilename Condition="$(OutputFilename) == ''">$(Temp)\nmake.loc</OutputFilename>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NMakeExe Include="$(VC_ExecutablePath_x86_x86)\nmake.exe" Condition="$(VC_ExecutablePath_x86_x86) != ''" />
+    </ItemGroup>
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName($(OutputFilename)))" />
+    <WriteLinesToFile File="$(OutputFilename)" Lines="@(_NMakeExe)" />
+  </Target>
+  
+  <Target Name="ResolveAssemblyReferences" />
+</Project>
