@@ -50,28 +50,6 @@ nmake
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 
-  <Target Name="_PatchUplink" BeforeTargets="Build">
-    <PropertyGroup>
-      <Uplink>$(expatDir)\ms\uplink.c</Uplink>
-      <BeforePatch>((h = GetModuleHandle(NULL)) == NULL)</BeforePatch>
-      <AfterPatch>((h = GetModuleHandleA("_ssl.pyd")) == NULL) if ((h = GetModuleHandleA("_ssl_d.pyd")) == NULL) if ((h = GetModuleHandle(NULL)) == NULL /*patched*/)</AfterPatch>
-    </PropertyGroup>
-    <Error Text="Cannot find $(Uplink)" Condition="!Exists($(Uplink))" />
-    <PropertyGroup>
-      <_Original>$([System.IO.File]::ReadAllText($(Uplink)))</_Original>
-      <_Patched>$(_Original.Replace($(BeforePatch), $(AfterPatch)))</_Patched>
-      <IsPatched>false</IsPatched>
-      <IsPatched Condition="$(_Patched) == $(_Original)">true</IsPatched>
-    </PropertyGroup>
-    <Message Text="$(Uplink) is already patched" Importance="normal" Condition="$(IsPatched)" />
-    <Message Text="Patching $(Uplink)" Importance="high" Condition="!$(IsPatched)" />
-    <WriteLinesToFile File="$(Uplink)"
-                      Lines="$(_Patched)"
-                      Overwrite="true"
-                      Encoding="ASCII"
-                      Condition="!$(IsPatched)" />
-  </Target>
-
   <Target Name="_CopyToOutput" AfterTargets="Build">
     <ItemGroup>
       <_Built Include="$(expatDir)\LICENSE" />
