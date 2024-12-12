@@ -45,6 +45,7 @@
     <ExtensionModules Include="bz2" Condition="$(IncludeBzip2) or $(IncludeExternals)" />
     <ExternalModules Include="_tkinter;tix" Condition="$(IncludeTkinter)" />
     <ExternalModules Include="_bsddb" Condition="$(IncludeBsddb)" />
+    <ExternalModules Include="expat" />
     <ExtensionModules Include="@(ExternalModules->'%(Identity)')" Condition="$(IncludeExternals)" />
     <Projects Include="@(ExtensionModules->'%(Identity).vcxproj')" Condition="$(IncludeExtensions)" />
     <!-- Test modules -->
