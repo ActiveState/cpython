@@ -6,7 +6,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(expatLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;$(expatLibDir)\libcrypto.lib;$(expatLibDir)\libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;$(expatLibDir)\libcrypto.lib;$(expatLibDir)\libexpat.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <PropertyGroup>
