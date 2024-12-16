@@ -64,7 +64,8 @@
     <zlibDir Condition="!HasTrailingSlash($(zlibDir))">$(zlibDir)\</zlibDir>
     <zlibIncludeDir>$(zlibDir)include</zlibIncludeDir>
     <zlibLibDir>$(zlibDir)lib</zlibLibDir>
-
+    <!-- Expat library directory that ActiveState provides -->
+    <expatLibDir>$(AS_DEPENDENCIES_DIR)/lib</expatLibDir>
     <!-- Suffix for all binaries when building for debug -->
     <PyDebugExt Condition="'$(PyDebugExt)' == '' and $(Configuration) == 'Debug'">_d</PyDebugExt>
 

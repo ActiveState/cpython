@@ -61,16 +61,21 @@
       <AdditionalIncludeDirectories>$(PySourcePath)Modules\expat;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;PYEXPAT_EXPORTS;XML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(expatLibDir)\libexpat.lib</AdditionalDependencies>
+      <!-- <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories> -->
+      <BaseAddress>0x1e000000</BaseAddress>
+    </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="..\Modules\expat\xmlrole.h" />
-    <ClInclude Include="..\Modules\expat\xmltok.h" />
-  </ItemGroup>
+  <!-- <ItemGroup> -->
+  <!--   <ClInclude Include="..\Modules\expat\xmlrole.h" /> -->
+  <!--   <ClInclude Include="..\Modules\expat\xmltok.h" /> -->
+  <!-- </ItemGroup> -->
   <ItemGroup>
     <ClCompile Include="..\Modules\pyexpat.c" />
-    <ClCompile Include="..\Modules\expat\xmlparse.c" />
-    <ClCompile Include="..\Modules\expat\xmlrole.c" />
-    <ClCompile Include="..\Modules\expat\xmltok.c" />
+    <!-- <ClCompile Include="..\Modules\expat\xmlparse.c" /> -->
+    <!-- <ClCompile Include="..\Modules\expat\xmlrole.c" /> -->
+    <!-- <ClCompile Include="..\Modules\expat\xmltok.c" /> -->
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="pythoncore.vcxproj">
