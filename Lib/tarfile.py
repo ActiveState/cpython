@@ -928,10 +928,10 @@ class ExFileObject(object):
         else:
             # An exception occurred. We must not call close() because
             # it would try to write end-of-archive blocks and padding.
-            #INFO: This was used in Python3.6, but we aren't based off io.BufferedReader in Python2
-            # if not self._extfileobj:
-            #     self.fileobj.close()
-            self.close()
+            if not self._extfileobj:
+                self.fileobj.close()
+
+
 #class ExFileObject
 
 #------------------
@@ -1962,14 +1962,16 @@ class TarFile(object):
                 tarinfo.devminor = os.minor(statres.st_rdev)
         return tarinfo
 
-    def list(self, verbose=True):
+    def list(self, verbose=True, members=None):
         """Print a table of contents to sys.stdout. If `verbose' is False, only
            the names of the members are printed. If it is True, an `ls -l'-like
            output is produced.
         """
         self._check()
 
-        for tarinfo in self:
+        if members is None:
+            members = self.getmembers()
+        for tarinfo in members:
             if verbose:
                 print filemode(tarinfo.mode),
                 print "%s/%s" % (tarinfo.uname or tarinfo.uid,

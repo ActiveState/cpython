@@ -80,7 +80,6 @@ class UstarReadTest(ReadTest):
                 "I will gladly admit that Python is not the fastest running scripting language.\n",
                 "fileobj.readlines() failed")
 
-        #FIX: This now breaks with the new tarfile
     def test_fileobj_iter(self):
         self.tar.extract("ustar/regtype", TEMPDIR)
         tarinfo = self.tar.getmember("ustar/regtype")
@@ -238,18 +237,17 @@ class ListTest(ReadTest, unittest.TestCase):
         self.assertIn('pax' + ('/123' * 125) + '/longlink link to pax' +
                       ('/123' * 125) + '/longname', out)
 
-    #INFO: Python2 list doesn't have the "members" functionality, so can't test
-    # def test_list_members(self):
-    #     tio = io.TextIOWrapper(io.BytesIO(), 'ascii', newline='\n')
-    #     def members(tar):
-    #         for tarinfo in tar.getmembers():
-    #             if 'reg' in tarinfo.name:
-    #                 yield tarinfo
-    #     with support.swap_attr(sys, 'stdout', tio):
-    #         self.tar.list(verbose=False, members=members(self.tar))
-    #     out = tio.detach().getvalue()
-    #     self.assertIn(b'ustar/regtype', out)
-    #     self.assertNotIn(b'ustar/conttype', out)
+    def test_list_members(self):
+        tio = io.BufferedRandom(io.BytesIO())
+        def members(tar):
+            for tarinfo in tar.getmembers():
+                if 'reg' in tarinfo.name:
+                    yield tarinfo
+        with support.swap_attr(sys, 'stdout', tio):
+            self.tar.list(verbose=False, members=members(self.tar))
+        out = tio.detach().getvalue()
+        self.assertIn(b'ustar/regtype', out)
+        self.assertNotIn(b'ustar/conttype', out)
 
 class GzipListTest(ListTest):
     tarname = gzipname
@@ -577,9 +575,6 @@ class MiscReadTest(CommonReadTest):
                 self.assertEqual(m1.offset, m2.offset)
                 self.assertEqual(m1.name, m2.name)
 
-# FIX: Brought in from Python3.6
-# class MiscReadTest(MiscReadTestBase, unittest.TestCase):
-#     test_fail_comp = None
 
 class StreamReadTest(CommonReadTest):
 
@@ -622,13 +617,6 @@ class StreamReadTest(CommonReadTest):
         finally:
             tar1.close()
 
-# FIX: Brought in from Python3.6
-# class GzipStreamReadTest(GzipTest, StreamReadTest):
-#     pass
-#
-#INFO: Python2 doesn't have LZMA
-# class LzmaStreamReadTest(LzmaTest, StreamReadTest):
-#     pass
 
 class TarTest:
     tarname = tarname
@@ -639,6 +627,7 @@ class TarTest:
     @property
     def mode(self):
         return self.prefix + self.suffix
+
 
 class DetectReadTest(TarTest, unittest.TestCase):
     def _testfunc_file(self, name, mode):
@@ -709,10 +698,6 @@ class DetectReadTest(TarTest, unittest.TestCase):
 
         self._testfunc_file(tmpname, "r|*")
 
-
-#INFO: Python2 doesn't have LZMA
-# class LzmaDetectReadTest(LzmaTest, DetectReadTest):
-#     pass
 
 class MemberReadTest(ReadTest):
 
@@ -953,6 +938,7 @@ class WriteTestBase(unittest.TestCase):
             t.size = tarfile.RECORDSIZE - tarfile.BLOCKSIZE
             tar.addfile(t, io.BytesIO(b"a" * t.size))
 
+
 class WriteTest(WriteTestBase):
 
     mode = "w:"
@@ -1021,6 +1007,7 @@ class WriteTest(WriteTestBase):
         finally:
             os.rmdir(path)
 
+
     #INFO: We don't have pathlib on Python2, not sure if we can really test this
     # def test_gettarinfo_pathlike_name(self):
     #     with tarfile.open(tmpname, self.mode) as tar:
@@ -1033,8 +1020,7 @@ class WriteTest(WriteTestBase):
     #         self.assertEqual(tarinfo.name, tarinfo2.name)
     #         self.assertEqual(tarinfo.size, 3)
 
-    @unittest.skipUnless(hasattr(os, "link"),
-                         "Missing hardlink implementation")
+    @unittest.skipUnless(hasattr(os, "link"),"Missing hardlink implementation")
     def test_link_size(self):
         if hasattr(os, "link"):
             link = os.path.join(TEMPDIR, "link")
@@ -1583,21 +1569,6 @@ class CreateTest(WriteTestBase, unittest.TestCase):
         self.assertIn('spameggs42', names[0])
 
 
-#FIX: Brought in by Python3.6
-# class GzipCreateTest(GzipTest, CreateTest):
-#     pass
-
-
-#FIX: Brought in by Python3.6
-# class Bz2CreateTest(Bz2Test, CreateTest):
-#     pass
-
-
-#INFO: Python2 doesn't have LZMA
-# class LzmaCreateTest(LzmaTest, CreateTest):
-#     pass
-
-
 class CreateWithXModeTest(CreateTest):
 
     prefix = "x"
@@ -1850,12 +1821,29 @@ class PaxUnicodeTest(UstarUnicodeTest):
         self.assertEqual(tar.getnames()[0], "\xe4\xf6\xfc/" + u"\u20ac".encode("utf8"))
 
     # FIX: Came in on Python3.6
-    # # Test the same as above for the 100 bytes link field.
-    # def test_unicode_link1(self):
-    #     self._test_ustar_link("0123456789" * 10)
-    #     self._test_ustar_link("0123456789" * 10 + "0", ValueError)
-    #     self._test_ustar_link("0123456789" * 9 + "01234567\xff")
-    #     self._test_ustar_link("0123456789" * 9 + "012345678\xff", ValueError)
+    # Test the same as above for the 100 bytes link field.
+    def test_unicode_link1(self):
+        self._test_ustar_link("0123456789" * 10)
+        self._test_ustar_link("0123456789" * 10 + "0", ValueError)
+        # Use a two byte UTF-8 character
+        self._test_ustar_link("0123456789" * 9 + "01234567\303\251")
+        self._test_ustar_link("0123456789" * 9 + "012345678\303\251", ValueError)
+
+    def _test_ustar_link(self, name, exc=None):
+        with tarfile.open(tmpname, "w", format=0, encoding="utf-8") as tar:
+            t = tarfile.TarInfo("foo")
+            t.linkname = name
+            if exc is None:
+                tar.addfile(t)
+            else:
+                self.assertRaises(exc, tar.addfile, t)
+
+        if exc is None:
+            with tarfile.open(tmpname, "r", encoding="utf-8") as tar:
+                for t in tar:
+                    self.assertEqual(name, t.linkname)
+                    break
+
 
 class AppendTest(unittest.TestCase):
     # Test append mode (cp. patch #1652681).
@@ -2016,7 +2004,7 @@ class MiscTest(unittest.TestCase):
                           "foo")
         self.assertEqual(tarfile.nts(b"foo\0bar\0"),
                           "foo")
-    
+
     def test_read_number_fields(self):
         # Issue 13158: Test if GNU tar specific base-256 number fields
         # are decoded correctly.
@@ -2026,12 +2014,6 @@ class MiscTest(unittest.TestCase):
                        0o10000000)
         self.assertEqual(tarfile.nti(b"\x80\x00\x00\x00\xff\xff\xff\xff"),
                        0xffffffff)
-        # self.assertEqual(tarfile.nti(b"\xff\xff\xff\xff\xff\xff\xff\xff"),
-        #                -1)
-        # self.assertEqual(tarfile.nti(b"\xff\xff\xff\xff\xff\xff\xff\x9c"),
-        #                -100)
-        # self.assertEqual(tarfile.nti(b"\xff\x00\x00\x00\x00\x00\x00\x00"),
-        #                -0x100000000000000)
 
         # Issue 24514: Test if empty number fields are converted to zero.
         self.assertEqual(tarfile.nti("\0"), 0)

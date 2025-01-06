@@ -873,6 +873,16 @@ testall:	@DEF_MAKE_RULE@ platform
 		-$(TESTPYTHON) $(TESTPROG) -uall $(TESTOPTS)
 		$(TESTPYTHON) $(TESTPROG) -uall $(TESTOPTS)
 
+
+TESTOPTSA=	$(TESTOPTS) -vvv
+TESTPROGA=	$(srcdir)/Lib/test/test_shutil.py
+TESTPYTHONA=	$(RUNSHARED) ./$(BUILDPYTHON) -Wd -3 -E -tt $(TESTPYTHONOPTS)
+testA:	
+		-find $(srcdir)/Lib -name '*.py[co]' -print | xargs rm -f
+		-$(TESTPYTHONA) $(TESTPROGA) $(TESTOPTSA)
+		$(TESTPYTHONA) $(TESTPROGA) $(TESTOPTSA)
+
+
 #  Run the unitests for both architectures in a Universal build on OSX
 #  Must be run on an Intel box.
 testuniversal:	@DEF_MAKE_RULE@ platform
