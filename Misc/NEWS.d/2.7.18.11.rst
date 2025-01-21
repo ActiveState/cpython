@@ -14,3 +14,19 @@ The list method of TarFile now has the "members" parameter
 Various tests were added to check for proper behaviour with SymLinks
 
 Python2 doesn't have pathlib, so those tests are disabled
+
+.. bpo: ?
+.. date: 2025-01-20
+.. nonce: 
+.. release date: 2025-01-22
+.. section: Core and Builtins
+
+CVE-2024-6232
+
+Remove backtracking when parsing tarfile headers
+
+Python2 doesn't support PAX headers so, for the most part this doesn't affect Python2
+
+Various tests were added from the CVE fix to improve rigour
+
+[3.12] gh-121285: Remove backtracking when parsing tarfile headers (GH-121286) (GH-123543)
