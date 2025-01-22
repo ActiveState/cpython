@@ -30,3 +30,13 @@ Python2 doesn't support PAX headers so, for the most part this doesn't affect Py
 Various tests were added from the CVE fix to improve rigour
 
 [3.12] gh-121285: Remove backtracking when parsing tarfile headers (GH-121286) (GH-123543)
+
+.. bpo: ?
+.. date: 2025-01-20
+.. nonce: 
+.. release date: 2025-01-22
+.. section: xml_etree
+
+BE-4504 Use newer Expat > 2.6.3 (in particular AS Platform Expat 2.6.4)
+
+Expat is now stricter, and invalid IRIs are now rejected with a syntax error.
