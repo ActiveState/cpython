@@ -2650,6 +2650,19 @@ post-handshake TLS encrypted data.  Security issue reported as
 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-40217>`_ by Aapo
 Oksman. Patch by Gregory P. Smith.
 
+Notable security feature in 3.7.17.7
+==================================
+
+* :func:`email.utils.getaddresses` and :func:`email.utils.parseaddr` now return
+  ``('', '')`` 2-tuples in more situations where invalid email addresses are
+  encountered, instead of potentially inaccurate values.
+  An optional *strict* parameter was added to these two functions:
+  use ``strict=False`` to get the old behavior, accepting malformed inputs.
+  ``getattr(email.utils, 'supports_strict_parsing', False)`` can be used to
+  check if the *strict* paramater is available.
+  (Contributed by Thomas Dwyer and Victor Stinner for :gh:`102988` to improve
+  the CVE-2023-27043 fix.)
+
 Notable changes in 3.7.17.4
 =========================
 
