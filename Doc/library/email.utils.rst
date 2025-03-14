@@ -21,12 +21,17 @@ There are several useful utilities provided in the :mod:`email.utils` module:
    begins with angle brackets, they are stripped off.
 
 
-.. function:: parseaddr(address)
+.. function:: parseaddr(address, strict=True)
 
    Parse address -- which should be the value of some address-containing field such
    as :mailheader:`To` or :mailheader:`Cc` -- into its constituent *realname* and
    *email address* parts.  Returns a tuple of that information, unless the parse
    fails, in which case a 2-tuple of ``('', '')`` is returned.
+
+   If *strict* is true, use a strict parser which rejects malformed inputs.
+
+   .. versionchanged:: 2.7.18.12
+      Add *strict* optional parameter and reject malformed inputs by default.
 
 
 .. function:: formataddr(pair)
@@ -37,7 +42,7 @@ There are several useful utilities provided in the :mod:`email.utils` module:
    second element is returned unmodified.
 
 
-.. function:: getaddresses(fieldvalues)
+.. function:: getaddresses(fieldvalues, strict=True)
 
    This method returns a list of 2-tuples of the form returned by ``parseaddr()``.
    *fieldvalues* is a sequence of header field values as might be returned by
@@ -51,6 +56,9 @@ There are several useful utilities provided in the :mod:`email.utils` module:
       resent_tos = msg.get_all('resent-to', [])
       resent_ccs = msg.get_all('resent-cc', [])
       all_recipients = getaddresses(tos + ccs + resent_tos + resent_ccs)
+
+   .. versionchanged:: 2.7.18.12
+      Add *strict* optional parameter and reject malformed inputs by default.
 
 
 .. function:: parsedate(date)

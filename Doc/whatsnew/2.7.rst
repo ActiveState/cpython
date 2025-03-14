@@ -2793,3 +2793,20 @@ The author would like to thank the following people for offering
 suggestions, corrections and assistance with various drafts of this
 article: Nick Coghlan, Philip Jenvey, Ryan Lovett, R. David Murray,
 Hugh Secker-Walker.
+
+
+Notable changes in 3.8.20
+=========================
+
+email
+-----
+
+* :func:`email.utils.getaddresses` and :func:`email.utils.parseaddr` now return
+  ``('', '')`` 2-tuples in more situations where invalid email addresses are
+  encountered, instead of potentially inaccurate values.
+  An optional *strict* parameter was added to these two functions:
+  use ``strict=False`` to get the old behavior, accepting malformed inputs.
+  ``getattr(email.utils, 'supports_strict_parsing', False)`` can be used to
+  check if the *strict* paramater is available.
+  (Contributed by Thomas Dwyer and Victor Stinner for :gh:`102988` to improve
+  the CVE-2023-27043 fix.)
