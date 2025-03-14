@@ -2417,9 +2417,11 @@ Foo
     def test_getaddresses_nasty(self):
         eq = self.assertEqual
         eq(Utils.getaddresses(['foo: ;']), [('', '')])
-        eq(Utils.getaddresses(
-           ['[]*-- =~$']),
-           [('', ''), ('', ''), ('', '*--')])
+        addresses = ['[]*-- =~$']
+        eq(Utils.getaddresses(addresses),
+            [('', '')])
+        eq(Utils.getaddresses(addresses, strict=False),
+            [('', ''), ('', ''), ('', '*--')])
         eq(Utils.getaddresses(
            ['foo: ;', '"Jason R. Mastaler" <jason@dom.ain>']),
            [('', ''), ('Jason R. Mastaler', 'jason@dom.ain')])

@@ -87,3 +87,4 @@ coverage/
 externals/
 htmlcov/
 gmon.out
+.aider*
