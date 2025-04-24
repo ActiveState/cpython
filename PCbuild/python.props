@@ -62,7 +62,7 @@
 
   <PropertyGroup>
     <sqlite3Dir>$(SQLITE3_DIR)</sqlite3Dir>
-    <sqlite3Dir Condition="$(sqlite3Dir) == ''">$(ExternalsDir)sqlite-3.45.1.0\</sqlite3Dir>
+    <sqlite3Dir Condition="$(sqlite3Dir) == ''">$(ExternalsDir)sqlite-3.49.1.0\</sqlite3Dir>
     <sqlite3Dir Condition="!HasTrailingSlash($(sqlite3Dir))">$(sqlite3Dir)\</sqlite3Dir>
     <bz2Dir>$(BZIP2_DIR)</bz2Dir>
     <bz2Dir Condition="$(bz2Dir) == ''">$(ExternalsDir)bzip2-1.0.8\</bz2Dir>
@@ -80,6 +80,7 @@
     <opensslLibdir/>
     <opensslOutDir Condition="$(opensslDir) == ''">$(ExternalsDir)openssl-bin-1.1.1w\$(ArchName)\</opensslOutDir>
     <opensslLibDir Condition="$(opensslDir) == ''">$(opensslOutDir)</opensslLibDir>
+    <opensslBinDir Condition="$(opensslDir) == ''">$(opensslOutDir)</opensslBinDir>
     <opensslIncludeDir Condition="$(opensslDir) == ''">$(opensslOutDir)include</opensslIncludeDir>
 
     <opensslDir Condition="$(opensslDir) == ''">$(ExternalsDir)openssl-1.1.1w\</opensslDir>
@@ -87,6 +88,8 @@
 
     <opensslIncludeDir Condition="$(opensslIncludeDir) == ''">$(opensslDir)include</opensslIncludeDir>
     <opensslLibDir Condition="$(opensslLibDir) == ''">$(opensslDir)lib</opensslLibDir>
+    <opensslBinDir Condition="$(opensslBinDir) == '' and $(SSLMajorVersion) == '1'">$(opensslDir)lib</opensslBinDir>
+    <opensslBinDir Condition="$(opensslBinDir) == ''">$(opensslDir)bin</opensslBinDir>
     <nasmDir Condition="$(nasmDir) == ''">$(ExternalsDir)\nasm-2.11.06\</nasmDir>
     <zlibDir>$(ZLIB_DIR)</zlibDir>
     <zlibDir Condition="$(zlibDir) == ''">$(ExternalsDir)\zlib-1.3.1\</zlibDir>

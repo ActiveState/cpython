@@ -7,7 +7,7 @@
     <TclMinorVersion>$(TCL_MINOR_VERSION)</TclMinorVersion>
     <TclMinorVersion Condition="$(TclMinorVersion) == ''">6</TclMinorVersion>
     <TclPatchLevel>$(TCL_PATCHLEVEL)</TclPatchLevel>
-    <TclPatchLevel Condition="$(TclPatchLevel) == ''">12</TclPatchLevel>
+    <TclPatchLevel Condition="$(TclPatchLevel) == ''">15</TclPatchLevel>
     <TclRevision>$(TCL_REVISION)</TclRevision>
     <TclRevision Condition="$(TclRevision) == ''">0</TclRevision>
     <TkMajorVersion>$(TclMajorVersion)</TkMajorVersion>
@@ -17,9 +17,9 @@
     <TixMajorVersion>$(TIX_MAJOR_VERSION)</TixMajorVersion>
     <TixMajorVersion Condition="$(TixMajorVersion) == ''">8</TixMajorVersion>
     <TixMinorVersion>$(TIX_MINOR_VERSION)</TixMinorVersion>
-    <TixMinorVersion Condition="$(TixMinorVersion) == ''">4</TixMinorVersion>
+    <TixMinorVersion Condition="$(TixMinorVersion) == ''">6</TixMinorVersion>
     <TixPatchLevel>$(TIX_PATCHLEVEL)</TixPatchLevel>
-    <TixPatchLevel Condition="$(TixPatchlevel) == ''">3</TixPatchLevel>
+    <TixPatchLevel Condition="$(TixPatchlevel) == ''">15</TixPatchLevel>
     <TixRevision>$(TIX_REVISION)</TixRevision>
     <TixRevision Condition="$(TixRevision) == ''">6</TixRevision>
     <tclDir>$(TCL_DIR)</tclDir>

@@ -54,8 +54,8 @@ set libraries=
 set libraries=%libraries%                                       bzip2-1.0.8
 if NOT "%IncludeLibffiSrc%"=="false" set libraries=%libraries%  libffi-3.4.4
 if NOT "%IncludeSSLSrc%"=="false" set libraries=%libraries%     openssl-1.1.1w
-set libraries=%libraries%                                       sqlite-3.45.1.0
-if NOT "%IncludeTkinterSrc%"=="false" set libraries=%libraries% tcl-core-8.6.9.0
+set libraries=%libraries%                                       sqlite-3.49.1.0
+if NOT "%IncludeTkinterSrc%"=="false" set libraries=%libraries% tcl-core-8.6.15.0
 if NOT "%IncludeTkinterSrc%"=="false" set libraries=%libraries% tk-8.6.9.0
 if NOT "%IncludeTkinterSrc%"=="false" set libraries=%libraries% tix-8.4.3.6
 set libraries=%libraries%                                       xz-5.2.2
