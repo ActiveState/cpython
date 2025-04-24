@@ -4,6 +4,7 @@
 
 static const char cprt[] =
 "\
+Copyright (c) 2000-2023 ActiveState Software Inc.\n\
 Copyright (c) 2001-2023 Python Software Foundation.\n\
 All Rights Reserved.\n\
 \n\

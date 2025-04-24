@@ -378,8 +378,8 @@ def library_recipes():
     if getDeptargetTuple() < (10, 5):
         result.extend([
           dict(
-              name="Bzip2 1.0.6",
-              url="http://bzip.org/1.0.6/bzip2-1.0.6.tar.gz",
+              name="Bzip2 1.0.8",
+              url="https://camel-sources.s3.amazonaws.com/src/vendor-sources/python-core/bzip2-1.0.8-pysvn.tar.gz",
               checksum='00b516f4704d4a7cb50a1d97e6e8e15b',
               configure=None,
               install='make install CC=%s CXX=%s, PREFIX=%s/usr/local/ CFLAGS="-arch %s"'%(

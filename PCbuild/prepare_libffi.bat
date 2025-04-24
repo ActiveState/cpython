@@ -53,7 +53,6 @@ if /I "%1"=="-noopt" (set BUILD_NOOPT=CFLAGS='-Od -warn all') & shift & goto :Ch
 if /I "%1"=="-license" (set COPY_LICENSE=1) & shift & goto :CheckOpts
 if /I "%1"=="-?" goto :Usage
 if /I "%1"=="--install-cygwin" (set INSTALL_CYGWIN=1) & shift & goto :CheckOpts
-goto :Usage
 
 :CheckOptsDone
 
@@ -68,7 +67,7 @@ if NOT DEFINED BUILD_X64 if NOT DEFINED BUILD_X86 if NOT DEFINED BUILD_ARM32 if 
 if "%INSTALL_CYGWIN%"=="1" call :InstallCygwin
 
 setlocal
-if NOT DEFINED SH if exist c:\cygwin\bin\sh.exe set SH=c:\cygwin\bin\sh.exe
+if NOT DEFINED SH if exist c:\tools\msys64\usr\bin\sh.exe set SH=c:\tools\msys64\usr\bin\sh.exe
 
 if NOT DEFINED VCVARSALL (
     for /F "tokens=*" %%i in ('"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -property installationPath -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64') DO @(set VCVARSALL="%%i\VC\Auxiliary\Build\vcvarsall.bat")
@@ -84,8 +83,8 @@ if not exist %LIBFFI_SOURCE% echo ERROR %LIBFFI_SOURCE% does not exist && goto :
 set OLDPWD=%LIBFFI_SOURCE%
 pushd %LIBFFI_SOURCE%
 
-%SH% --login -lc "cygcheck -dc cygwin"
-set GET_MSVCC=%SH% -lc "cd $OLDPWD; export MSVCC=`/usr/bin/find $PWD -name msvcc.sh`; echo ${MSVCC};"
+%SH% --login -c "cygcheck -dc cygwin"
+set GET_MSVCC=%SH% -c "cd $OLDPWD; export MSVCC=`/usr/bin/find $PWD -name msvcc.sh`; echo ${MSVCC};"
 FOR /F "usebackq delims==" %%i IN (`%GET_MSVCC%`) do @set MSVCC=%%i
 
 echo.
@@ -96,13 +95,14 @@ echo MSVCC        : %MSVCC%
 echo.
 
 if not exist Makefile.in (
-    %SH% -lc "(cd $LIBFFI_SOURCE; ./autogen.sh;)"
+    %SH% -c "(cd $LIBFFI_SOURCE; ./autogen.sh;)"
     if errorlevel 1 exit /B 1
 )
 
-if "%BUILD_X64%"=="1" call :BuildOne x64 x86_64-w64-cygwin x86_64-w64-cygwin
+
+if "%BUILD_X64%"=="1" call :BuildOne x64 x86_64-w64-mingw64 x86_64-w64-mingw64
 if errorlevel 1 exit /B %ERRORLEVEL%
-if "%BUILD_X86%"=="1" call :BuildOne x86 i686-pc-cygwin i686-pc-cygwin
+if "%BUILD_X86%"=="1" call :BuildOne x86 i686-pc-mingw32 i686-pc-mingw32
 if errorlevel 1 exit /B %ERRORLEVEL%
 if "%BUILD_ARM32%"=="1" call :BuildOne x86_arm i686-pc-cygwin arm-w32-cygwin
 if errorlevel 1 exit /B %ERRORLEVEL%
@@ -132,13 +132,13 @@ if NOT DEFINED VCVARS_PLATFORM echo ERROR bad VCVARS_PLATFORM&&exit /b 123
 
 if /I "%VCVARS_PLATFORM%" EQU "x64" (
     set ARCH=amd64
-    set ARTIFACTS=%LIBFFI_SOURCE%\x86_64-w64-cygwin
+    set ARTIFACTS=%LIBFFI_SOURCE%\x86_64-w64-mingw64
     set ASSEMBLER=-m64
     set SRC_ARCHITECTURE=x86
 )
 if /I "%VCVARS_PLATFORM%" EQU "x86" (
     set ARCH=win32
-    set ARTIFACTS=%LIBFFI_SOURCE%\i686-pc-cygwin
+    set ARTIFACTS=%LIBFFI_SOURCE%\i686-pc-mingw32
     set ASSEMBLER=
     set SRC_ARCHITECTURE=x86
 )
@@ -164,22 +164,28 @@ call %VCVARSALL% %VCVARS_PLATFORM%
 echo clean %_LIBFFI_OUT%
 if exist %_LIBFFI_OUT% (rd %_LIBFFI_OUT% /s/q)
 
+REM There headers are included preconfigured and I don't know why.
+REM They're different from what's in cpython-bin-deps and break the build,
+REM so remove them first.
+del /q include\ffi.h
+del /q include\fficonfig.h
+
 echo ================================================================
 echo Configure the build to generate fficonfig.h and ffi.h
 echo ================================================================
-%SH% -lc "(cd $OLDPWD; ./configure CC='%MSVCC% %ASSEMBLER% %BUILD_PDB%' CXX='%MSVCC% %ASSEMBLER% %BUILD_PDB%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' %BUILD_NOOPT% NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
+%SH% -c "(cd $OLDPWD; ./configure CC='%MSVCC% %ASSEMBLER% %BUILD_PDB%' CXX='%MSVCC% %ASSEMBLER% %BUILD_PDB%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' %BUILD_NOOPT% NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
 if errorlevel 1 exit /B %ERRORLEVEL%
 
 echo ================================================================
 echo Building libffi
 echo ================================================================
-%SH% -lc "(cd $OLDPWD; export PATH=/usr/bin:$PATH; cp src/%SRC_ARCHITECTURE%/ffitarget.h include; make; find .;)"
+%SH% -c "(cd $OLDPWD; export PATH=/usr/bin:$PATH; cp src/%SRC_ARCHITECTURE%/ffitarget.h include; make; find .;)"
 if errorlevel 1 exit /B %ERRORLEVEL%
 
 REM Tests are not needed to produce artifacts
 if "%LIBFFI_TEST%" EQU "1" (
     echo "Running tests..."
-    %SH% -lc "(cd $OLDPWD; export PATH=/usr/bin:$PATH; cp `find $PWD -name 'libffi-?.dll'` $HOST/testsuite/; make check; cat `find ./ -name libffi.log`)"
+    %SH% -c "(cd $OLDPWD; export PATH=/usr/bin:$PATH; cp `find $PWD -name 'libffi-?.dll'` $HOST/testsuite/; make check; cat `find ./ -name libffi.log`)"
 ) else (
     echo "Not running tests"
 )

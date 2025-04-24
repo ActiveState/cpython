@@ -985,7 +985,7 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
         _setSSLError(NULL, 0, __FILE__, __LINE__);
         return NULL;
     }
-    /* bpo43522 and OpenSSL < 1.1.1l: copy hostflags manually */
+    /* bpo43522 and OpenSSL < 1.1.1n: copy hostflags manually */
 #if !defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION < 0x101010cf
     X509_VERIFY_PARAM *ssl_params = SSL_get0_param(self->ssl);
     X509_VERIFY_PARAM_set_hostflags(ssl_params, sslctx->hostflags);

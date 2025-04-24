@@ -5,7 +5,7 @@
       <AdditionalIncludeDirectories>$(opensslIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(opensslOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(opensslLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ws2_32.lib;libcrypto.lib;libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -15,10 +15,10 @@
     <_DLLSuffix Condition="$(Platform) == 'ARM64'">$(_DLLSuffix)-arm64</_DLLSuffix>
   </PropertyGroup>
   <ItemGroup>
-    <_SSLDLL Include="$(opensslOutDir)\libcrypto$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslOutDir)\libcrypto$(_DLLSuffix).pdb" />
-    <_SSLDLL Include="$(opensslOutDir)\libssl$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslOutDir)\libssl$(_DLLSuffix).pdb" />
+    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).dll" />
+    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).pdb" />
+    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).dll" />
+    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).pdb" />
   </ItemGroup>
   <Target Name="_CopySSLDLL" Inputs="@(_SSLDLL)" Outputs="@(_SSLDLL->'$(OutDir)%(Filename)%(Extension)')" AfterTargets="Build">
     <Copy SourceFiles="@(_SSLDLL)" DestinationFolder="$(OutDir)" />

@@ -1472,7 +1472,6 @@ libinstall:	build_all $(srcdir)/Modules/xxmodule.c
 	done
 	$(INSTALL_DATA) `cat pybuilddir.txt`/_sysconfigdata_$(ABIFLAGS)_$(MACHDEP)_$(MULTIARCH).py \
 		$(DESTDIR)$(LIBDEST); \
-	$(INSTALL_DATA) $(srcdir)/LICENSE $(DESTDIR)$(LIBDEST)/LICENSE.txt
 	if test -d $(DESTDIR)$(LIBDEST)/distutils/tests; then \
 		$(INSTALL_DATA) $(srcdir)/Modules/xxmodule.c \
 			$(DESTDIR)$(LIBDEST)/distutils/tests ; \
@@ -1624,7 +1623,7 @@ sharedinstall: sharedmods
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) $(srcdir)/setup.py install \
 	   	--prefix=$(prefix) \
 		--install-scripts=$(BINDIR) \
-		--install-platlib=$(DESTSHARED) \
+		--install-platlib=${exec_prefix}/lib/python$(VERSION)/lib-dynload \
 		--root=$(DESTDIR)/
 	-rm $(DESTDIR)$(DESTSHARED)/_sysconfigdata_$(ABIFLAGS)_$(MACHDEP)_$(MULTIARCH).py
 	-rm -r $(DESTDIR)$(DESTSHARED)/__pycache__
