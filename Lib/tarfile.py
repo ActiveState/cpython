@@ -1385,7 +1385,8 @@ class TarInfo(object):
         encoding = None
         raw_headers = []
         while len(buf) > pos and buf[pos] != 0x00:
-            if not (match := _header_length_prefix_re.match(buf, pos)):
+            match = _header_length_prefix_re.match(buf, pos)
+            if not match:
                 raise InvalidHeaderError("invalid header")
             try:
                 length = int(match.group(1))
