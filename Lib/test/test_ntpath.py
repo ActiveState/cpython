@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 import warnings
-from test.support import TestFailed, FakePath
+from test.support import TestFailed, FakePath, EnvironmentVarGuard
 from test import support, test_genericpath
 from tempfile import TemporaryFile
 
@@ -210,7 +210,7 @@ class TestNtpath(NtpathTestCase):
         tester("ntpath.normpath('\\\\?\\D:/XY\\Z')", r'\\?\D:/XY\Z')
 
     def test_expandvars(self):
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             env.clear()
             env["foo"] = "bar"
             env["{foo"] = "baz1"
@@ -239,7 +239,7 @@ class TestNtpath(NtpathTestCase):
     def test_expandvars_nonascii(self):
         def check(value, expected):
             tester('ntpath.expandvars(%r)' % value, expected)
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             env.clear()
             nonascii = support.FS_NONASCII
             env['spam'] = nonascii
@@ -255,10 +255,23 @@ class TestNtpath(NtpathTestCase):
             check('%spam%bar', '%sbar' % nonascii)
             check('%{}%bar'.format(nonascii), 'ham%sbar' % nonascii)
 
+    @support.requires_resource('cpu')
+    def test_expandvars_large(self):
+        expandvars = ntpath.expandvars
+        with EnvironmentVarGuard() as env:
+            env.clear()
+            env["A"] = "B"
+            n = 100_000
+            self.assertEqual(expandvars('%A%'*n), 'B'*n)
+            self.assertEqual(expandvars('%A%A'*n), 'BA'*n)
+            self.assertEqual(expandvars("''"*n + '%%'), "''"*n + '%')
+            self.assertEqual(expandvars("%%"*n), "%"*n)
+            self.assertEqual(expandvars("$$"*n), "$"*n)
+
     def test_expanduser(self):
         tester('ntpath.expanduser("test")', 'test')
 
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             env.clear()
             tester('ntpath.expanduser("~test")', '~test')
 
@@ -468,6 +481,7 @@ class TestNtpath(NtpathTestCase):
             b_final_path = nt._getfinalpathname(path.encode())
             self.assertIsInstance(b_final_path, bytes)
             self.assertGreater(len(b_final_path), 0)
+
 
 class NtCommonTest(test_genericpath.CommonTest, unittest.TestCase):
     pathmodule = ntpath
