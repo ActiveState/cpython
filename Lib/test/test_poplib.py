@@ -15,6 +15,7 @@ from test import support as test_support
 from test.support import hashlib_helper
 from test.support import socket_helper
 from test.support import threading_helper
+from test.support import control_characters_c0
 
 import warnings
 with warnings.catch_warnings():
@@ -364,6 +365,13 @@ class TestPOP3Class(TestCase):
         self.assertTrue(resp)
         self.assertIsNone(self.client.sock)
         self.assertIsNone(self.client.file)
+
+    def test_control_characters(self):
+        for c0 in control_characters_c0():
+            with self.assertRaises(ValueError):
+                self.client.user(f'user{c0}')
+            with self.assertRaises(ValueError):
+                self.client.pass_(f'{c0}pass')
 
     @requires_ssl
     def test_stls_capa(self):
