@@ -979,8 +979,8 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
     self->ssl = SSL_new(ctx);
     PySSL_END_ALLOW_THREADS
     if (self->ssl == NULL) {
-        Py_DECREF(self);
         _setSSLError(NULL, 0, __FILE__, __LINE__);
+        Py_DECREF(self);
         return NULL;
     }
     /* bpo43522 and OpenSSL < 1.1.1l: copy hostflags manually */
