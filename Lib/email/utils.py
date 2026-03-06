@@ -340,7 +340,7 @@ def parseaddr(addr, strict=True):
         addr = addr[0]
 
     # FIX: Support both str and unicode in Python 2
-    if not isinstance(addr, (str, unicode)):  # Python 2 compatible
+    if not isinstance(addr, (str, unicode)):
         return ('', '')
 
     # Convert unicode to str for consistent processing
