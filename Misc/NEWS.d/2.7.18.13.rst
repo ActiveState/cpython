@@ -1,0 +1,7 @@
+.. bpo: ?
+.. date: 2026-03-06
+.. nonce: 
+.. release date: 2026-03-06
+.. section: Core and Builtins
+
+Refactor CVE-2023-27043 patch to support Unicode characters
