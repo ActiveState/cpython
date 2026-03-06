@@ -2286,6 +2286,22 @@ Foo
         eq(utils.getaddresses(
            ['foo: ;', '"Jason R. Mastaler" <jason@dom.ain>']),
            [('', ''), ('Jason R. Mastaler', 'jason@dom.ain')])
+        
+    def test_getaddresses_nasty_unicode(self):
+        """Test parseaddr with unicode strings in Python 2"""
+
+        test_cases = [
+            u'user@example.com',
+            u'Test User <user@example.com>',
+            u'"Test User" <user@example.com>',
+        ]
+        
+        for addr in test_cases:
+            result = utils.parseaddr(addr, strict=True)
+            self.assertNotEqual(result, ('', ''))
+            
+            result_non_strict = utils.parseaddr(addr, strict=False)
+            self.assertEqual(result, result_non_strict)
 
     def test_getaddresses_embedded_comment(self):
         """Test proper handling of a nested comment"""

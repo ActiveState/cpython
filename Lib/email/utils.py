@@ -339,8 +339,13 @@ def parseaddr(addr, strict=True):
     if isinstance(addr, list):
         addr = addr[0]
 
-    if not isinstance(addr, str):
+    # FIX: Support both str and unicode in Python 2
+    if not isinstance(addr, (str, unicode)):  # Python 2 compatible
         return ('', '')
+
+    # Convert unicode to str for consistent processing
+    if isinstance(addr, unicode):
+        addr = addr.encode('utf-8')
 
     addr = _pre_parse_validation([addr])[0]
     addrs = _post_parse_validation(_AddressList(addr).addresslist)
