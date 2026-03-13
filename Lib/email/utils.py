@@ -162,7 +162,15 @@ def getaddresses(fieldvalues, strict=True):
         a = _AddressList(all)
         return a.addresslist
 
-    fieldvalues = [str(v) for v in fieldvalues]
+    converted_values = []
+    for v in fieldvalues:
+        if isinstance(v, unicode):
+            v = v.encode('utf-8')
+        elif not isinstance(v, str):
+            v = str(v)
+        converted_values.append(v)
+    
+    fieldvalues = converted_values
     fieldvalues = _pre_parse_validation(fieldvalues)
     addr = COMMASPACE.join(fieldvalues)
     a = _AddressList(addr)
