@@ -2320,6 +2320,22 @@ class TestMiscellaneous(TestEmailBase):
             ('', '')
         )
 
+    def test_parseaddr_unicode(self):
+        """Test parseaddr with unicode strings"""
+
+        test_cases = [
+            u'user@example.com',
+            u'Test User <user@example.com>',
+            u'"Test User" <user@example.com>',
+        ]
+        
+        for addr in test_cases:
+            result = Utils.parseaddr(addr, strict=True)
+            self.assertNotEqual(result, ('', ''))
+            
+            result_non_strict = Utils.parseaddr(addr, strict=False)
+            self.assertEqual(result, result_non_strict)
+
     def test_noquote_dump(self):
         self.assertEqual(
             Utils.formataddr(('A Silly Person', 'person@dom.ain')),
@@ -2425,28 +2441,26 @@ Foo
         eq(Utils.getaddresses(
            ['foo: ;', '"Jason R. Mastaler" <jason@dom.ain>']),
            [('', ''), ('Jason R. Mastaler', 'jason@dom.ain')])
-        
-    def test_getaddresses_nasty_unicode(self):
-        """Test parseaddr with unicode strings in Python 2"""
-
-        test_cases = [
-            u'user@example.com',
-            u'Test User <user@example.com>',
-            u'"Test User" <user@example.com>',
-        ]
-        
-        for addr in test_cases:
-            result = Utils.parseaddr(addr, strict=True)
-            self.assertNotEqual(result, ('', ''))
-            
-            result_non_strict = Utils.parseaddr(addr, strict=False)
-            self.assertEqual(result, result_non_strict)
 
     def test_getaddresses_embedded_comment(self):
         """Test proper handling of a nested comment"""
         eq = self.assertEqual
         addrs = Utils.getaddresses(['User ((nested comment)) <foo@bar.com>'])
         eq(addrs[0][1], 'foo@bar.com')
+
+    def test_getaddresses_unicode(self):
+        """Test getaddresses with unicode strings in Python 2"""
+
+        test_cases = [
+            ([u'user@example.com'], [('', 'user@example.com')]),
+            ([u'Test User <user@example.com>'], [('Test User', 'user@example.com')]),
+            ([u'"Test User" <user@example.com>'], [('Test User', 'user@example.com')]),
+            ([u'user1@example.com', u'user2@example.com'], [('', 'user1@example.com'), ('', 'user2@example.com')]),
+        ]
+        
+        for addrs, expected in test_cases:
+            result = Utils.getaddresses(addrs)
+            self.assertEqual(result, expected)
 
     def test_make_msgid_collisions(self):
         # Test make_msgid uniqueness, even with multiple threads

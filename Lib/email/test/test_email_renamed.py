@@ -2199,6 +2199,22 @@ class TestMiscellaneous(TestEmailBase):
         self.assertEqual(utils.parseaddr('<>'), ('', ''))
         self.assertEqual(utils.formataddr(utils.parseaddr('<>')), '')
 
+    def test_parseaddr_unicode(self):
+        """Test parseaddr with unicode strings"""
+
+        test_cases = [
+            u'user@example.com',
+            u'Test User <user@example.com>',
+            u'"Test User" <user@example.com>',
+        ]
+        
+        for addr in test_cases:
+            result = utils.parseaddr(addr, strict=True)
+            self.assertNotEqual(result, ('', ''))
+            
+            result_non_strict = utils.parseaddr(addr, strict=False)
+            self.assertEqual(result, result_non_strict)
+
     def test_noquote_dump(self):
         self.assertEqual(
             utils.formataddr(('A Silly Person', 'person@dom.ain')),
@@ -2286,22 +2302,6 @@ Foo
         eq(utils.getaddresses(
            ['foo: ;', '"Jason R. Mastaler" <jason@dom.ain>']),
            [('', ''), ('Jason R. Mastaler', 'jason@dom.ain')])
-        
-    def test_getaddresses_nasty_unicode(self):
-        """Test parseaddr with unicode strings in Python 2"""
-
-        test_cases = [
-            u'user@example.com',
-            u'Test User <user@example.com>',
-            u'"Test User" <user@example.com>',
-        ]
-        
-        for addr in test_cases:
-            result = utils.parseaddr(addr, strict=True)
-            self.assertNotEqual(result, ('', ''))
-            
-            result_non_strict = utils.parseaddr(addr, strict=False)
-            self.assertEqual(result, result_non_strict)
 
     def test_getaddresses_embedded_comment(self):
         """Test proper handling of a nested comment"""
@@ -2309,7 +2309,21 @@ Foo
         addrs = utils.getaddresses(['User ((nested comment)) <foo@bar.com>'])
         eq(addrs[0][1], 'foo@bar.com')
 
-    def test_utils_quote_unquote(self):
+    def test_getaddresses_unicode(self):
+        """Test getaddresses with unicode strings in Python 2"""
+
+        test_cases = [
+            ([u'user@example.com'], [('', 'user@example.com')]),
+            ([u'Test User <user@example.com>'], [('Test User', 'user@example.com')]),
+            ([u'"Test User" <user@example.com>'], [('Test User', 'user@example.com')]),
+            ([u'user1@example.com', u'user2@example.com'], [('', 'user1@example.com'), ('', 'user2@example.com')]),
+        ]
+        
+        for addrs, expected in test_cases:
+            result = utils.getaddresses(addrs)
+            self.assertEqual(result, expected)
+
+    def test__quote_unquote(self):
         eq = self.assertEqual
         msg = Message()
         msg.add_header('content-disposition', 'attachment',
