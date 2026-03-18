@@ -2201,16 +2201,19 @@ class TestMiscellaneous(TestEmailBase):
 
     def test_parseaddr_unicode(self):
         """Test parseaddr with unicode strings"""
-
         test_cases = [
-            u'user@example.com',
-            u'Test User <user@example.com>',
-            u'"Test User" <user@example.com>',
+            (u'user@example.com', ('', u'user@example.com')),
+            (u'Test User <user@example.com>', (u'Test User', u'user@example.com')),
+            (u'"Test User" <user@example.com>', (u'Test User', u'user@example.com')),
         ]
         
-        for addr in test_cases:
+        for addr, expected in test_cases:
             result = utils.parseaddr(addr, strict=True)
-            self.assertNotEqual(result, ('', ''))
+            self.assertEqual(result, expected)
+            if result[0]:
+                self.assertIsInstance(result[0], unicode)
+            if result[1]:
+                self.assertIsInstance(result[1], unicode)
             
             result_non_strict = utils.parseaddr(addr, strict=False)
             self.assertEqual(result, result_non_strict)
@@ -2310,18 +2313,22 @@ Foo
         eq(addrs[0][1], 'foo@bar.com')
 
     def test_getaddresses_unicode(self):
-        """Test getaddresses with unicode strings in Python 2"""
-
+        """Test getaddresses with unicode strings"""
         test_cases = [
-            ([u'user@example.com'], [('', 'user@example.com')]),
-            ([u'Test User <user@example.com>'], [('Test User', 'user@example.com')]),
-            ([u'"Test User" <user@example.com>'], [('Test User', 'user@example.com')]),
-            ([u'user1@example.com', u'user2@example.com'], [('', 'user1@example.com'), ('', 'user2@example.com')]),
+            ([u'user@example.com'], [('', u'user@example.com')]),
+            ([u'Test User <user@example.com>'], [(u'Test User', u'user@example.com')]),
+            ([u'"Test User" <user@example.com>'], [(u'Test User', u'user@example.com')]),
+            ([u'user1@example.com', u'user2@example.com'], [('', u'user1@example.com'), ('', u'user2@example.com')]),
         ]
         
         for addrs, expected in test_cases:
             result = utils.getaddresses(addrs)
             self.assertEqual(result, expected)
+            for realname, email in result:
+                if realname:
+                    self.assertIsInstance(realname, unicode)
+                if email:
+                    self.assertIsInstance(email, unicode)
 
     def test__quote_unquote(self):
         eq = self.assertEqual
