@@ -162,16 +162,19 @@ def getaddresses(fieldvalues, strict=True):
         a = _AddressList(all)
         return a.addresslist
 
+    unicode_flags = []
     converted_values = []
     for v in fieldvalues:
-        if isinstance(v, unicode):
+        is_unicode = isinstance(v, unicode)
+        unicode_flags.append(is_unicode)
+
+        if is_unicode:
             v = v.encode('utf-8')
         elif not isinstance(v, str):
             v = str(v)
         converted_values.append(v)
     
-    fieldvalues = converted_values
-    fieldvalues = _pre_parse_validation(fieldvalues)
+    fieldvalues = _pre_parse_validation(converted_values)
     addr = COMMASPACE.join(fieldvalues)
     a = _AddressList(addr)
     result = _post_parse_validation(a.addresslist)
@@ -188,7 +191,29 @@ def getaddresses(fieldvalues, strict=True):
     if len(result) != n:
         return [('', '')]
 
-    return result
+    final_result = []
+    result_idx = 0
+
+    for i, was_unicode in enumerate(unicode_flags):
+        if result_idx >= len(result):
+            break
+
+        realname, email = result[result_idx]
+
+        if was_unicode:
+            if realname:
+                realname = realname.decode('utf-8')
+            if email:
+                email = email.decode('utf-8')
+
+        final_result.append((realname, email))
+        result_idx += 1
+
+    while result_idx < len(result):
+        final_result.append(result[result_idx])
+        result_idx += 1
+
+    return final_result
 
 
 def _check_parenthesis(addr):
@@ -347,12 +372,12 @@ def parseaddr(addr, strict=True):
     if isinstance(addr, list):
         addr = addr[0]
 
-    # FIX: Support both str and unicode in Python 2
+    is_unicode = isinstance(addr, unicode)
+
     if not isinstance(addr, (str, unicode)):
         return ('', '')
 
-    # Convert unicode to str for consistent processing
-    if isinstance(addr, unicode):
+    if is_unicode:
         addr = addr.encode('utf-8')
 
     addr = _pre_parse_validation([addr])[0]
@@ -361,8 +386,17 @@ def parseaddr(addr, strict=True):
     if not addrs or len(addrs) > 1:
         return ('', '')
 
-    return addrs[0]
+    result = addrs[0]
 
+    if is_unicode:
+        realname, email = result
+        if realname:
+            realname = realname.decode('utf-8')
+        if email:
+            email = email.decode('utf-8')
+        return (realname, email)
+
+    return result
 
 
 # rfc822.unquote() doesn't properly de-backslash-ify in Python pre-2.3.
