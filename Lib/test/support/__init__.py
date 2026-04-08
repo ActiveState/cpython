@@ -3046,6 +3046,16 @@ def adjust_int_max_str_digits(max_digits):
         sys.set_int_max_str_digits(current)
 
 
+@contextlib.contextmanager
+def infinite_recursion(max_depth=75):
+    original_depth = sys.getrecursionlimit()
+    try:
+        sys.setrecursionlimit(max_depth)
+        yield
+    finally:
+        sys.setrecursionlimit(original_depth)
+
+
 def control_characters_c0():
     """Returns a list of C0 control characters as strings.
     C0 control characters defined as the byte range 0x00-0x1F, and 0x7F.
