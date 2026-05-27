@@ -92,13 +92,14 @@ HTTP_COOKIE environment variable.
    'Set-Cookie: chips=ahoy\r\nSet-Cookie: vienna=finger'
 
 The load() method is darn-tootin smart about identifying cookies
-within a string.  Escaped quotation marks, nested semicolons, and other
-such trickeries do not confuse it.
+within a string.  Escaped quotation marks and nested semicolons do not
+confuse it.  (Note that cookies whose values contain control characters
+are now rejected to prevent Set-Cookie header injection; CVE-2026-0672.)
 
    >>> C = Cookie.SmartCookie()
-   >>> C.load('keebler="E=everybody; L=\\"Loves\\"; fudge=\\012;";')
+   >>> C.load('keebler="E=everybody; L=\\"Loves\\"; fudge=delicious;";')
    >>> print C
-   Set-Cookie: keebler="E=everybody; L=\"Loves\"; fudge=\012;"
+   Set-Cookie: keebler="E=everybody; L=\"Loves\"; fudge=delicious;"
 
 Each element of the Cookie also supports all of the RFC 2109
 Cookie attributes.  Here's an example which sets the Path
@@ -242,6 +243,15 @@ class CookieError(Exception):
 #       _Translator       hash-table for fast quoting
 #
 _LegalChars       = string.ascii_letters + string.digits + "!#$%&'*+-.^_`|~"
+_control_character_re = re.compile(r'[\x00-\x1f\x7f]')
+
+def _has_control_character(*values):
+    """Return True if any of the given string values holds a control char."""
+    for v in values:
+        if isinstance(v, basestring) and _control_character_re.search(v):
+            return True
+    return False
+
 _Translator       = {
     '\000' : '\\000',  '\001' : '\\001',  '\002' : '\\002',
     '\003' : '\\003',  '\004' : '\\004',  '\005' : '\\005',
@@ -424,6 +434,8 @@ class Morsel(dict):
         K = K.lower()
         if not K in self._reserved:
             raise CookieError("Invalid Attribute %s" % K)
+        if _has_control_character(K, V):
+            raise CookieError("Control characters are not allowed in cookies: %r %r" % (K, V))
         dict.__setitem__(self, K, V)
     # end __setitem__
 
@@ -440,6 +452,9 @@ class Morsel(dict):
             raise CookieError("Attempt to set a reserved key: %s" % key)
         if "" != translate(key, idmap, LegalChars):
             raise CookieError("Illegal key value: %s" % key)
+        if _has_control_character(key, val, coded_val):
+            raise CookieError("Control characters are not allowed in cookies: %r %r %r"
+                              % (key, val, coded_val))
 
         # It's a good key, so save it.
         self.key                 = key

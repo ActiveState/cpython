@@ -12,6 +12,16 @@ from types import ListType, TupleType
 import re
 tspecials = re.compile(r'[ \(\)<>@,;:\\"/\[\]\?=]')
 
+# Match C0 control characters and DEL, which must never appear in a header
+# name or value (they would allow HTTP response splitting / header injection).
+_control_chars_re = re.compile(r'[\x00-\x1f\x7f]')
+
+def _check_string(value):
+    """Reject header names/values containing control characters."""
+    if isinstance(value, str) and _control_chars_re.search(value):
+        raise ValueError("Control characters not allowed in headers")
+    return value
+
 def _formatparam(param, value=None, quote=1):
     """Convenience function to format and return a key=value pair.
 
@@ -34,6 +44,9 @@ class Headers:
     def __init__(self,headers):
         if type(headers) is not ListType:
             raise TypeError("Headers must be a list of name/value tuples")
+        for name, val in headers:
+            _check_string(name)
+            _check_string(val)
         self._headers = headers
 
     def __len__(self):
@@ -42,6 +55,8 @@ class Headers:
 
     def __setitem__(self, name, val):
         """Set the value of a header."""
+        _check_string(name)
+        _check_string(val)
         del self[name]
         self._headers.append((name, val))
 
@@ -158,12 +173,15 @@ class Headers:
         *not* handle '(charset, language, value)' tuples: all values must be
         strings or None.
         """
+        _check_string(_name)
         parts = []
         if _value is not None:
+            _check_string(_value)
             parts.append(_value)
         for k, v in _params.items():
             if v is None:
                 parts.append(k.replace('_', '-'))
             else:
+                _check_string(v)
                 parts.append(_formatparam(k.replace('_', '-'), v))
         self._headers.append((_name, "; ".join(parts)))

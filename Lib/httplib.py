@@ -773,6 +773,9 @@ class HTTPConnection:
         if self.sock:
             raise RuntimeError("Can't setup tunnel for established connection.")
 
+        # Reject control characters (notably CR/LF) in the tunnel host so they
+        # cannot be injected into the CONNECT request line (CVE-2026-1502).
+        self._validate_host(host)
         self._tunnel_host, self._tunnel_port = self._get_hostport(host, port)
         if headers:
             self._tunnel_headers = headers

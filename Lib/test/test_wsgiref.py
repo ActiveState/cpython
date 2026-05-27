@@ -300,6 +300,19 @@ class UtilityTests(TestCase):
 
 class HeaderTests(TestCase):
 
+    def testControlCharactersRejected(self):
+        # CVE-2026-0865: control characters in header names/values must be
+        # rejected to prevent HTTP response splitting / header injection.
+        h = Headers([])
+        self.assertRaises(ValueError, h.__setitem__, 'Foo', 'bar\r\nInjected: 1')
+        self.assertRaises(ValueError, h.__setitem__, 'Ba\nd', 'value')
+        self.assertRaises(ValueError, h.add_header, 'Foo', 'a\nb')
+        self.assertRaises(ValueError, h.add_header, 'Foo', 'ok', baz='x\ry')
+        self.assertRaises(ValueError, Headers, [('Foo', 'a\nb')])
+        # Benign headers still work.
+        h['Foo'] = 'bar'
+        h.add_header('Content-Disposition', 'attachment', filename='ok.txt')
+
     def testMappingInterface(self):
         test = [('x','y')]
         self.assertEqual(len(Headers([])),0)

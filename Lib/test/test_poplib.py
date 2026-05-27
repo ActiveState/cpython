@@ -156,6 +156,14 @@ class DummyPOP3Server(asyncore.dispatcher, threading.Thread):
 
 class TestPOP3Class(TestCase):
 
+    def test_putline_rejects_control_characters(self):
+        # CVE-2025-15367: control characters (e.g. CR/LF) in a command line
+        # must be rejected to prevent POP3 command injection.
+        self.assertRaises(poplib.error_proto, self.client._putline,
+                          'USER guido\r\nDELE 1')
+        self.assertRaises(poplib.error_proto, self.client._putline,
+                          'PASS secret\x00')
+
     def assertOK(self, resp):
         self.assertTrue(resp.startswith("+OK"))
 

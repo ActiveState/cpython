@@ -23,6 +23,26 @@ CERTFILE = None
 
 class TestImaplib(unittest.TestCase):
 
+    def test_command_rejects_control_characters(self):
+        # CVE-2025-15366: control characters (e.g. CR/LF) in command arguments
+        # must be rejected to prevent IMAP command injection.
+        # imaplib.IMAP4 is an old-style class, so we use a subclass with a
+        # no-op __init__ to skip the networking parent.__init__.
+        class _NoConnIMAP4(imaplib.IMAP4):
+            def __init__(self): pass
+        imap = _NoConnIMAP4()
+        imap.state = 'AUTH'
+        imap.untagged_responses = {}
+        imap.is_readonly = False
+        imap.literal = None
+        imap.tagpre = 'IMAP'
+        imap.tagnum = 0
+        imap.tagged_commands = {}
+        self.assertRaises(ValueError, imap._command,
+                          'SELECT', 'inbox\r\nX LOGOUT')
+        self.assertRaises(ValueError, imap._command,
+                          'SELECT', 'inbox\x00')
+
     def test_that_Time2Internaldate_returns_a_result(self):
         # We can check only that it successfully produces a result,
         # not the correctness of the result itself, since the result
