@@ -989,6 +989,16 @@ class HTTPSTest(TestCase):
 
 
 class TunnelTests(TestCase):
+    def test_set_tunnel_rejects_control_characters(self):
+        # CVE-2026-1502: CR/LF (and other control chars) in the tunnel host
+        # must be rejected so they cannot be injected into the CONNECT request.
+        conn = httplib.HTTPConnection('proxy.com')
+        self.assertRaises(httplib.InvalidURL, conn.set_tunnel,
+                          'destination.com\r\nInjected: header')
+        self.assertRaises(httplib.InvalidURL, conn.set_tunnel, 'evil\nhost')
+        # A benign host is still accepted.
+        conn.set_tunnel('destination.com')
+
     def test_connect(self):
         response_text = (
             'HTTP/1.0 200 OK\r\n\r\n'   # Reply to CONNECT

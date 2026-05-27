@@ -8,6 +8,21 @@ import pickle
 
 
 class CookieTests(unittest.TestCase):
+
+    def test_control_characters_rejected(self):
+        # CVE-2026-0672: control characters (e.g. CR/LF) in cookie values or
+        # attributes must be rejected to prevent Set-Cookie header injection.
+        M = Cookie.Morsel()
+        self.assertRaises(Cookie.CookieError, M.set,
+                          'key', 'value\r\nInjected: header', 'value')
+        self.assertRaises(Cookie.CookieError, M.set,
+                          'key', 'value', 'coded\nvalue')
+        self.assertRaises(Cookie.CookieError, M.__setitem__,
+                          'path', '/\r\nSet-Cookie: pwned=1')
+        # Benign values still work.
+        M.set('key', 'value', 'value')
+        M['path'] = '/ok'
+
     # Currently this only tests SimpleCookie
     def test_basic(self):
         cases = [
@@ -17,11 +32,8 @@ class CookieTests(unittest.TestCase):
               'output': 'Set-Cookie: chips=ahoy\nSet-Cookie: vienna=finger',
             },
 
-            { 'data': 'keebler="E=mc2; L=\\"Loves\\"; fudge=\\012;"',
-              'dict': {'keebler' : 'E=mc2; L="Loves"; fudge=\012;'},
-              'repr': '''<SimpleCookie: keebler='E=mc2; L="Loves"; fudge=\\n;'>''',
-              'output': 'Set-Cookie: keebler="E=mc2; L=\\"Loves\\"; fudge=\\012;"',
-            },
+            # Control characters in cookie values are now rejected
+            # (CVE-2026-0672); see test_control_characters_rejected.
 
             # Check illegal cookies that have an '=' char in an unquoted value
             { 'data': 'keebler=E=mc2',
