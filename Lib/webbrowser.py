@@ -144,6 +144,12 @@ class BaseBrowser(object):
         self.name = name
         self.basename = name
 
+    @staticmethod
+    def _check_url(url):
+        """Ensures that the URL is safe to pass to subprocesses as a parameter"""
+        if url and url.lstrip().startswith("-"):
+            raise ValueError("Invalid URL (leading dash disallowed): %r" % (url,))
+
     def open(self, url, new=0, autoraise=True):
         raise NotImplementedError
 
@@ -169,6 +175,7 @@ class GenericBrowser(BaseBrowser):
         self.basename = os.path.basename(self.name)
 
     def open(self, url, new=0, autoraise=True):
+        self._check_url(url)
         cmdline = [self.name] + [arg.replace("%s", url)
                                  for arg in self.args]
         try:
@@ -186,6 +193,7 @@ class BackgroundBrowser(GenericBrowser):
        background."""
 
     def open(self, url, new=0, autoraise=True):
+        self._check_url(url)
         cmdline = [self.name] + [arg.replace("%s", url)
                                  for arg in self.args]
         try:
@@ -270,8 +278,11 @@ class UnixBrowser(BaseBrowser):
             raise Error("Bad 'new' parameter to open(); " +
                         "expected 0, 1, or 2, got %s" % new)
 
-        args = [arg.replace("%s", url).replace("%action", action)
+        self._check_url(url.replace("%action", action))
+
+        args = [arg.replace("%action", action).replace("%s", url)
                 for arg in self.remote_args]
+        args = [arg for arg in args if arg]
         success = self._invoke(args, True, autoraise)
         if not success:
             # remote invocation failed, try straight way

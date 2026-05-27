@@ -910,6 +910,30 @@ class PaxReadTest(LongnameTest):
             with self.assertRaisesRegexp(tarfile.ReadError, r"file could not be opened successfully"):
                 tarfile.open(tmpname, encoding="iso8859-1")
 
+    def test_pax_header_negative_size(self):
+        # A pax header with a negative "size" must be rejected rather than
+        # producing a negative member offset (CVE-2025-8194, gh-130577).
+        tar = tarfile.open(tmpname, "w", format=tarfile.PAX_FORMAT,
+                            encoding="iso8859-1")
+        try:
+            t = tarfile.TarInfo()
+            t.name = "pax"
+            t.uid = 1
+            t.pax_headers = {"foo": "bar"}
+            tar.addfile(t)
+        finally:
+            tar.close()
+        with open(tmpname, "rb") as f:
+            data = f.read()
+        self.assertIn(b"11 foo=bar\n", data)
+        # "13 size=-512\n" -- record length (13) includes itself and the newline
+        data = data.replace(b"11 foo=bar\n", b"13 size=-512\n")
+        with open(tmpname, "wb") as f:
+            f.truncate()
+            f.write(data)
+        with self.assertRaisesRegexp(tarfile.ReadError, r"file could not be opened successfully"):
+            tarfile.open(tmpname, encoding="iso8859-1")
+
 
 class WriteTestBase(unittest.TestCase):
     # Put all write tests in here that are supposed to be tested
@@ -2004,6 +2028,15 @@ class MiscTest(unittest.TestCase):
                           "foo")
         self.assertEqual(tarfile.nts(b"foo\0bar\0"),
                           "foo")
+
+    def test_block_negative_count(self):
+        # gh-130577: _block() must reject negative byte counts instead of
+        # returning a negative (rounded) value that yields a backward offset.
+        tarinfo = tarfile.TarInfo("foo")
+        self.assertEqual(tarinfo._block(834), 1024)
+        self.assertEqual(tarinfo._block(0), 0)
+        for bad in (-1, -512, -(2 ** 71)):
+            self.assertRaises(tarfile.InvalidHeaderError, tarinfo._block, bad)
 
     def test_read_number_fields(self):
         # Issue 13158: Test if GNU tar specific base-256 number fields
