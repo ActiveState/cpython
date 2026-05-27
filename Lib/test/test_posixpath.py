@@ -497,6 +497,21 @@ class PosixPathTest(unittest.TestCase):
             os.getcwd = real_getcwd
 
     @unittest.skipUnless(test_support.FS_NONASCII, 'need test_support.FS_NONASCII')
+    def test_expandvars_many(self):
+        # CVE-2025-6075: many substitutions must expand correctly (and in
+        # linear time -- the result is built once, not rebuilt per match).
+        with test_support.EnvironmentVarGuard() as env:
+            env.clear()
+            env['FOO'] = 'bar'
+            self.assertEqual(posixpath.expandvars('$FOO' * 1000), 'bar' * 1000)
+            self.assertEqual(posixpath.expandvars('$NOPE' * 1000),
+                             '$NOPE' * 1000)
+            self.assertEqual(posixpath.expandvars('${FOO}x' * 100),
+                             'barx' * 100)
+            # A long literal prefix followed by a '$' must not be quadratic.
+            big = 'a' * 100000 + '$FOO'
+            self.assertEqual(posixpath.expandvars(big), 'a' * 100000 + 'bar')
+
     def test_expandvars_nonascii_word(self):
         encoding = sys.getfilesystemencoding()
         uwnonascii = test_support.FS_NONASCII
