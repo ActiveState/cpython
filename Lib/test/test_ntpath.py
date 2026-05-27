@@ -182,6 +182,17 @@ class TestNtpath(unittest.TestCase):
         tester("ntpath.normpath('\\\\.\\NUL')", r'\\.\NUL')
         tester("ntpath.normpath('\\\\?\\D:/XY\\Z')", r'\\?\D:/XY\Z')
 
+    def test_expandvars_many(self):
+        # CVE-2025-6075: many substitutions must expand correctly and in
+        # linear time (the result is built by a single regex pass).
+        with test_support.EnvironmentVarGuard() as env:
+            env.clear()
+            env["foo"] = "bar"
+            self.assertEqual(ntpath.expandvars("%foo%" * 1000), "bar" * 1000)
+            self.assertEqual(ntpath.expandvars("$foo " * 1000), "bar " * 1000)
+            self.assertEqual(ntpath.expandvars("a" * 100000 + "%foo%"),
+                             "a" * 100000 + "bar")
+
     def test_expandvars(self):
         with test_support.EnvironmentVarGuard() as env:
             env.clear()

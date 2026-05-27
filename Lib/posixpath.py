@@ -305,28 +305,32 @@ def expandvars(path):
             _varprog = re.compile(r'\$(\w+|\{[^}]*\})')
         varprog = _varprog
         encoding = None
+    # Accumulate output segments instead of rebuilding the whole string on
+    # every substitution, which would be quadratic in the input size
+    # (CVE-2025-6075).
+    res = []
     i = 0
     while True:
         m = varprog.search(path, i)
         if not m:
+            res.append(path[i:])
             break
-        i, j = m.span(0)
+        j, k = m.span(0)
+        res.append(path[i:j])
         name = m.group(1)
         if name.startswith('{') and name.endswith('}'):
             name = name[1:-1]
-        if encoding:
-            name = name.encode(encoding)
-        if name in os.environ:
-            tail = path[j:]
-            value = os.environ[name]
+        lookup = name.encode(encoding) if encoding else name
+        if lookup in os.environ:
+            value = os.environ[lookup]
             if encoding:
                 value = value.decode(encoding)
-            path = path[:i] + value
-            i = len(path)
-            path += tail
+            res.append(value)
         else:
-            i = j
-    return path
+            # Unknown variable: leave the original text unchanged.
+            res.append(m.group(0))
+        i = k
+    return ''.join(res)
 
 
 # Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
