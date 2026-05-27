@@ -32,6 +32,10 @@ CR = '\r'
 LF = '\n'
 CRLF = CR+LF
 
+# Control characters (C0 and DEL) must not appear in a command line; otherwise
+# CR/LF could be used to inject extra POP3 commands (CVE-2025-15367).
+_control_chars = re.compile(r'[\x00-\x1f\x7f]')
+
 # maximal line length when calling readline(). This is to prevent
 # reading arbitrary length lines. RFC 1939 limits POP3 line length to
 # 512 characters, including CRLF. We have selected 2048 just to be on
@@ -94,6 +98,8 @@ class POP3:
 
     def _putline(self, line):
         if self._debugging > 1: print '*put*', repr(line)
+        if isinstance(line, basestring) and _control_chars.search(line):
+            raise error_proto('line contains control characters')
         self.sock.sendall('%s%s' % (line, CRLF))
 
 
@@ -389,6 +395,8 @@ else:
 
         def _putline(self, line):
             if self._debugging > 1: print '*put*', repr(line)
+            if isinstance(line, basestring) and _control_chars.search(line):
+                raise error_proto('line contains control characters')
             line += CRLF
             bytes = len(line)
             while bytes > 0:

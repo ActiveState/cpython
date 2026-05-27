@@ -104,6 +104,9 @@ MapCRLF = re.compile(r'\r\n|\r|\n')
 Response_code = re.compile(r'\[(?P<type>[A-Z-]+)( (?P<data>[^\]]*))?\]')
 Untagged_response = re.compile(r'\* (?P<type>[A-Z-]+)( (?P<data>.*))?')
 Untagged_status = re.compile(r'\* (?P<data>\d+) (?P<type>[A-Z-]+)( (?P<data2>.*))?')
+# Control characters (C0 and DEL) must not appear in command arguments;
+# otherwise CR/LF could be used to inject extra IMAP commands (CVE-2025-15366).
+_control_chars = re.compile(r'[\x00-\x1f\x7f]')
 
 
 
@@ -852,6 +855,8 @@ class IMAP4:
         data = '%s %s' % (tag, name)
         for arg in args:
             if arg is None: continue
+            if isinstance(arg, basestring) and _control_chars.search(arg):
+                raise ValueError("Control characters not allowed in commands")
             data = '%s %s' % (data, self._checkquote(arg))
 
         literal = self.literal
