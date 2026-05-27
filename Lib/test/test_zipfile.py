@@ -940,6 +940,35 @@ class OtherTests(unittest.TestCase):
             b'\x01\x003\x00\x00\x003\x00\x00\x00\x00\x00'),
     }
 
+    def test_overlapping_entries_rejected(self):
+        # CVE-2024-0450: an entry whose compressed data overruns the start of
+        # the following entry (a "quoted overlap" zip bomb) must be rejected.
+        buf = StringIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+            zf.writestr("a", "a" * 1000)
+        zf = zipfile.ZipFile(buf, "r")
+        try:
+            info = zf.getinfo("a")
+            # Sanity: a normal archive reads fine and has a known end offset.
+            self.assertEqual(zf.read("a"), "a" * 1000)
+            self.assertIsNotNone(info._end_offset)
+            # Simulate an overlap by shrinking the member's end boundary.
+            info._end_offset = info.header_offset + 1
+            self.assertRaises(zipfile.BadZipfile, zf.open, "a")
+        finally:
+            zf.close()
+
+    def test_zip64_locator_bad_offset_rejected(self):
+        # CVE-2025-8291: a ZIP64 end-of-central-directory locator whose
+        # relative offset points past the expected record must be rejected.
+        loc = struct.pack(zipfile.structEndArchive64Locator,
+                          zipfile.stringEndArchive64Locator, 0, 10 ** 9, 1)
+        buf = ('\0' * zipfile.sizeEndCentDir64 + loc +
+               '\0' * zipfile.sizeEndCentDir)
+        fpin = StringIO(buf)
+        self.assertRaises(zipfile.BadZipfile, zipfile._EndRecData64,
+                          fpin, -zipfile.sizeEndCentDir, [0] * 10)
+
     def test_unicode_filenames(self):
         with zipfile.ZipFile(TESTFN, "w") as zf:
             zf.writestr(u"foo.txt", "Test for unicode filename")
