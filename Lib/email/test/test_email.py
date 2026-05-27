@@ -77,6 +77,26 @@ class TestEmailBase(unittest.TestCase):
 
 # Test various aspects of the Message class's API
 class TestMessageAPI(TestEmailBase):
+    def test_string_rejects_header_injection(self):
+        # CVE-2024-6923: generating a message must reject header values that
+        # contain an injected newline (one not part of valid folding).  The
+        # no-wrap path writes the value verbatim, which deterministically
+        # exercises the check.
+        import email.errors
+        from email.generator import Generator
+        from cStringIO import StringIO
+        for bad in ('value\r\nInjected: header',
+                    'value\nInjected: header',
+                    'value\rstuff'):
+            msg = Message()
+            msg['Subject'] = bad
+            g = Generator(StringIO(), maxheaderlen=0)
+            self.assertRaises(email.errors.HeaderWriteError, g.flatten, msg)
+        # A normal header is still emitted fine.
+        msg = Message()
+        msg['Subject'] = 'a normal subject that is reasonably short'
+        self.assertIn('Subject: a normal subject', msg.as_string())
+
     def test_get_all(self):
         eq = self.assertEqual
         msg = self._msgobj('msg_20.txt')
