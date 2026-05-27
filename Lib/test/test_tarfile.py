@@ -2038,6 +2038,18 @@ class MiscTest(unittest.TestCase):
         for bad in (-1, -512, -(2 ** 71)):
             self.assertRaises(tarfile.InvalidHeaderError, tarinfo._block, bad)
 
+    def test_aregtype_dircheck(self):
+        # CVE-2025-13462: an AREGTYPE header whose name ends in a slash is
+        # normalized to DIRTYPE for a primary header, but NOT for a follow-up
+        # header (e.g. a GNU long name/link or pax header).
+        t = tarfile.TarInfo("foo/")
+        t.type = tarfile.AREGTYPE
+        buf = t.tobuf()
+        self.assertEqual(tarfile.TarInfo._frombuf(buf, dircheck=True).type,
+                         tarfile.DIRTYPE)
+        self.assertEqual(tarfile.TarInfo._frombuf(buf, dircheck=False).type,
+                         tarfile.AREGTYPE)
+
     def test_read_number_fields(self):
         # Issue 13158: Test if GNU tar specific base-256 number fields
         # are decoded correctly.
