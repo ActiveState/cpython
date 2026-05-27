@@ -57,7 +57,7 @@ def b64encode(s, altchars=None):
     return encoded
 
 
-def b64decode(s, altchars=None):
+def b64decode(s, altchars=None, validate=False):
     """Decode a Base64 encoded string.
 
     s is the string to decode.  Optional altchars must be a string of at least
@@ -65,10 +65,29 @@ def b64decode(s, altchars=None):
     alternative alphabet used instead of the '+' and '/' characters.
 
     The decoded string is returned.  A TypeError is raised if s is
-    incorrectly padded.  Characters that are neither in the normal base-64
-    alphabet nor the alternative alphabet are discarded prior to the padding
-    check.
+    incorrectly padded.
+
+    If validate is False (the default), characters that are neither in the
+    normal base-64 alphabet nor the alternative alphabet are discarded prior
+    to the padding check.  If validate is True, these non-alphabet characters
+    in the input result in a binascii.Error.
+
+    Unlike upstream (which only deprecates the lenient behaviour), validation
+    here checks the input against the *requested* alphabet, so the standard
+    '+'/'/' characters are rejected when an alternative alphabet is given
+    (CVE-2025-12781), and any data after the padding is rejected rather than
+    silently ignored (CVE-2026-3446).
     """
+    if validate:
+        if altchars is not None:
+            extra = altchars[:2]
+        else:
+            extra = b'+/'
+        valid = frozenset(string.ascii_letters + string.digits + extra)
+        stripped = s.rstrip(b'=')
+        npad = len(s) - len(stripped)
+        if npad > 2 or not all(c in valid for c in stripped):
+            raise binascii.Error('Non-base64 digit found')
     if altchars is not None:
         s = s.translate(string.maketrans(altchars[:2], '+/'))
     try:

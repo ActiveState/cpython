@@ -1,6 +1,7 @@
 import unittest
 from test import test_support
 import base64
+import binascii
 
 
 
@@ -99,6 +100,31 @@ class BaseXYTestCase(unittest.TestCase):
         eq(base64.urlsafe_b64encode('\xd3V\xbeo\xf7\x1d'), '01a-b_cd')
         # Non-bytes
         eq(base64.urlsafe_b64encode(bytearray('\xd3V\xbeo\xf7\x1d')), '01a-b_cd')
+
+    def test_b64decode_strict_validate(self):
+        # validate=True rejects non-alphabet characters instead of silently
+        # discarding them.
+        eq = self.assertEqual
+        eq(base64.b64decode("d3d3LnB5dGhvbi5vcmc=", validate=True),
+           "www.python.org")
+        # Embedded non-alphabet characters are rejected.
+        self.assertRaises(binascii.Error, base64.b64decode,
+                          "d3d3\nLnB5dGhvbi5vcmc=", validate=True)
+        # Data after the padding is rejected (CVE-2026-3446).
+        self.assertRaises(binascii.Error, base64.b64decode,
+                          "AA==extra", validate=True)
+        self.assertRaises(binascii.Error, base64.b64decode,
+                          "A=AA", validate=True)
+        # With an alternative alphabet, the standard '+'/'/' are rejected
+        # rather than silently accepted (CVE-2025-12781).
+        self.assertRaises(binascii.Error, base64.b64decode,
+                          "ab+/cd==", altchars="-_", validate=True)
+        # Valid data in the alternative alphabet still round-trips.
+        encoded = base64.b64encode("\xfb\xef\xff", altchars="-_")
+        eq(base64.b64decode(encoded, altchars="-_", validate=True),
+           "\xfb\xef\xff")
+        # The default (validate=False) keeps the lenient behaviour.
+        eq(base64.b64decode("d3d3\nLnB5dGhvbi5vcmc="), "www.python.org")
 
     def test_b64decode(self):
         eq = self.assertEqual
