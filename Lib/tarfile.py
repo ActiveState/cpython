@@ -1217,6 +1217,17 @@ class TarInfo(object):
     def frombuf(cls, buf):
         """Construct a TarInfo object from a 512 byte string buffer.
         """
+        return cls._frombuf(buf, dircheck=True)
+
+    @classmethod
+    def _frombuf(cls, buf, dircheck=True):
+        """Construct a TarInfo object from a 512 byte string buffer.
+
+        If dircheck is False an AREGTYPE header whose name ends in a slash is
+        NOT normalized to DIRTYPE.  dircheck must be False when this is called
+        on a follow-up header such as a GNU long name/link or a pax header,
+        otherwise such a header could be misinterpreted (CVE-2025-13462).
+        """
         if len(buf) == 0:
             raise EmptyHeaderError("empty header")
         if len(buf) != BLOCKSIZE:
@@ -1247,7 +1258,7 @@ class TarInfo(object):
 
         # Old V7 tar format represents a directory as a regular
         # file with a trailing slash.
-        if obj.type == AREGTYPE and obj.name.endswith("/"):
+        if dircheck and obj.type == AREGTYPE and obj.name.endswith("/"):
             obj.type = DIRTYPE
 
         # Remove redundant slashes from directories.
@@ -1264,8 +1275,12 @@ class TarInfo(object):
         """Return the next TarInfo object from TarFile object
            tarfile.
         """
+        return cls._fromtarfile(tarfile, dircheck=True)
+
+    @classmethod
+    def _fromtarfile(cls, tarfile, dircheck=True):
         buf = tarfile.fileobj.read(BLOCKSIZE)
-        obj = cls.frombuf(buf)
+        obj = cls._frombuf(buf, dircheck=dircheck)
         obj.offset = tarfile.fileobj.tell() - BLOCKSIZE
         return obj._proc_member(tarfile)
 
@@ -1318,7 +1333,7 @@ class TarInfo(object):
 
         # Fetch the next header and process it.
         try:
-            next = self.fromtarfile(tarfile)
+            next = self._fromtarfile(tarfile, dircheck=False)
         except HeaderError:
             raise SubsequentHeaderError("missing or bad subsequent header")
 
@@ -1428,7 +1443,7 @@ class TarInfo(object):
 
         # Fetch the next header.
         try:
-            next = self.fromtarfile(tarfile)
+            next = self._fromtarfile(tarfile, dircheck=False)
         except HeaderError:
             raise SubsequentHeaderError("missing or bad subsequent header")
 
