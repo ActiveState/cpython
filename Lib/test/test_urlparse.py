@@ -679,6 +679,26 @@ class UrlParseTestCase(unittest.TestCase):
             self.assertEqual(p.scheme, "https")
             self.assertEqual(p.geturl(), "https://www.python.org/")
 
+    def test_invalid_bracketed_host(self):
+        # CVE-2025-0938: square brackets must only enclose a valid
+        # IPv6/IPvFuture host, not appear elsewhere in the host/netloc.
+        invalid = [
+            "http://ex[ample].com/",
+            "http://[example.com]/",
+            "http://[1.2.3.4]/",
+            "http://[v1.x]extra/",
+            "http://[fe80::g]/",
+            "http://user[x]@example.com/",
+        ]
+        for url in invalid:
+            for parse in (urlparse.urlsplit, urlparse.urlparse):
+                self.assertRaises(ValueError, parse, url)
+        # Valid bracketed IPv6/IPvFuture hosts are still accepted.
+        for url in ("http://[::1]/", "http://[::1]:8080/path",
+                    "http://[2001:db8::1]/", "http://[v1.fe80::1]/"):
+            urlparse.urlsplit(url)
+            urlparse.urlparse(url)
+
     def test_attributes_bad_port_a(self):
         """Check handling of invalid ports."""
         for bytes in (False, True):
