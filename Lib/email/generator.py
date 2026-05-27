@@ -13,6 +13,12 @@ import warnings
 
 from cStringIO import StringIO
 from email.header import Header
+from email.errors import HeaderWriteError
+
+# Matches a CR/LF that is NOT part of a valid header folding (i.e. not
+# immediately followed by folding whitespace).  Used to detect injected
+# newlines in generated headers (CVE-2024-6923).
+NEWLINE_WITHOUT_FWSP = re.compile(r'\r\n[^ \t]|\r[^ \n\t]|\n[^ \t]')
 
 UNDERSCORE = '_'
 NL = '\n'
@@ -139,13 +145,12 @@ class Generator:
 
     def _write_headers(self, msg):
         for h, v in msg.items():
-            print >> self._fp, '%s:' % h,
             if self._maxheaderlen == 0:
                 # Explicit no-wrapping
-                print >> self._fp, v
+                value = v
             elif isinstance(v, Header):
                 # Header instances know what to do
-                print >> self._fp, v.encode()
+                value = v.encode()
             elif _is8bitstring(v):
                 # If we have raw 8bit data in a byte string, we have no idea
                 # what the encoding is.  There is no safe way to split this
@@ -153,15 +158,22 @@ class Generator:
                 # ascii split, but if it's multibyte then we could break the
                 # string.  There's no way to know so the least harm seems to
                 # be to not split the string and risk it being too long.
-                print >> self._fp, v
+                value = v
             else:
                 # Header's got lots of smarts, so use it.  Note that this is
                 # fundamentally broken though because we lose idempotency when
                 # the header string is continued with tabs.  It will now be
                 # continued with spaces.  This was reversedly broken before we
                 # fixed bug 1974.  Either way, we lose.
-                print >> self._fp, Header(
+                value = Header(
                     v, maxlinelen=self._maxheaderlen, header_name=h).encode()
+            # Reject headers that contain an injected newline, i.e. a CR/LF
+            # that is not part of valid header folding (CVE-2024-6923).
+            folded = '%s: %s' % (h, value)
+            if NEWLINE_WITHOUT_FWSP.search(folded):
+                raise HeaderWriteError(
+                    "header value contains an unexpected newline: %r" % (folded,))
+            print >> self._fp, folded
         # A blank line always separates headers from body
         print >> self._fp
 
