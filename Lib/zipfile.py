@@ -182,6 +182,8 @@ def _EndRecData64(fpin, offset, endrec):
     """
     Read the ZIP64 end-of-archive records and use that to update endrec
     """
+    fpin.seek(0, 2)
+    filesize = fpin.tell()
     try:
         fpin.seek(offset - sizeEndCentDir64Locator, 2)
     except IOError:
@@ -198,6 +200,14 @@ def _EndRecData64(fpin, offset, endrec):
 
     if diskno != 0 or disks != 1:
         raise BadZipfile("zipfiles that span multiple disks are not supported")
+
+    # The ZIP64 end of central directory record is expected to lie immediately
+    # before the locator.  Reject archives whose locator's relative offset
+    # points past that position, instead of trusting the assumed adjacency
+    # (CVE-2025-8291).
+    expected_reloff = filesize + offset - sizeEndCentDir64Locator - sizeEndCentDir64
+    if reloff > expected_reloff:
+        raise BadZipfile("Corrupt zip64 end of central directory locator")
 
     # Assume no 'zip64 extensible data'
     fpin.seek(offset - sizeEndCentDir64Locator - sizeEndCentDir64, 2)
@@ -305,6 +315,7 @@ class ZipInfo (object):
             'compress_size',
             'file_size',
             '_raw_time',
+            '_end_offset',
         )
 
     def __init__(self, filename="NoName", date_time=(1980,1,1,0,0,0)):
@@ -343,6 +354,9 @@ class ZipInfo (object):
         self.volume = 0                 # Volume number of file header
         self.internal_attr = 0          # Internal attributes
         self.external_attr = 0          # External file attributes
+        self._end_offset = None         # Start of the next local header (or
+                                        # the central directory); used to
+                                        # detect overlapping entries
         # Other attributes are set by class ZipFile:
         # header_offset         Byte offset to the file header
         # CRC                   CRC-32 of the uncompressed file
@@ -891,6 +905,17 @@ class ZipFile(object):
             if self.debug > 2:
                 print "total", total
 
+        # Compute the end of each member's data as the start of the next
+        # member's local header (or the start of the central directory for the
+        # last member).  This lets open() reject overlapping entries, i.e. a
+        # "quoted overlap" zip bomb (CVE-2024-0450).
+        end_offset = self.start_dir
+        for zinfo in sorted(self.filelist,
+                            key=lambda zinfo: zinfo.header_offset,
+                            reverse=True):
+            zinfo._end_offset = end_offset
+            end_offset = zinfo.header_offset
+
 
     def namelist(self):
         """Return a list of file names in the archive."""
@@ -1001,6 +1026,14 @@ class ZipFile(object):
                 raise BadZipfile, \
                         'File name in directory "%s" and header "%s" differ.' % (
                             zinfo.orig_filename, fname)
+
+            # Reject entries whose compressed data would extend past the start
+            # of the next entry: overlapping members are a zip bomb vector
+            # (CVE-2024-0450).
+            if (zinfo._end_offset is not None and
+                    zef_file.tell() + zinfo.compress_size > zinfo._end_offset):
+                raise BadZipfile("Overlapped entries: %r (possible zip bomb)"
+                                 % (zinfo.orig_filename,))
 
             # check for encrypted flag & handle password
             is_encrypted = zinfo.flag_bits & 0x1
