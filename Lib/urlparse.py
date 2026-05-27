@@ -198,6 +198,44 @@ def _checknetloc(netloc):
                              "under NFKC normalization"
                              % netloc)
 
+def _check_bracketed_host(hostname):
+    # Validate the content of a bracketed (IPv6 / IPvFuture) host.  ipaddress
+    # is unavailable in Python 2, so IPv6 is validated via socket.inet_pton
+    # when present, with a conservative character fallback otherwise.
+    if hostname.startswith('v'):
+        if not re.match(r"\Av[a-fA-F0-9]+\..+\Z", hostname):
+            raise ValueError("IPvFuture address is invalid")
+    elif ':' not in hostname:
+        # A bare domain name or IPv4 address is not allowed in brackets.
+        raise ValueError("An IPv4 address cannot be in brackets")
+    else:
+        try:
+            import socket
+            socket.inet_pton(socket.AF_INET6, hostname)
+        except AttributeError:
+            # inet_pton may be missing (e.g. Windows under Python 2).
+            if not re.match(r"\A[0-9A-Fa-f:.]+\Z", hostname):
+                raise ValueError("Invalid IPv6 address")
+        except (ValueError, socket.error):
+            raise ValueError("Invalid IPv6 address")
+
+def _check_bracketed_netloc(netloc):
+    # Reject '[' / ']' that do not delimit a valid IPv6/IPvFuture host
+    # (CVE-2025-0938).  This mirrors the splitting done in _hostinfo().
+    hostname_and_port = netloc.rpartition('@')[2]
+    before_bracket, have_open_br, bracketed = hostname_and_port.partition('[')
+    if have_open_br:
+        # No data is allowed before a bracket.
+        if before_bracket:
+            raise ValueError("Invalid IPv6 URL")
+        hostname, _, port = bracketed.partition(']')
+        # No data is allowed after the bracket but before the port delimiter.
+        if port and not port.startswith(":"):
+            raise ValueError("Invalid IPv6 URL")
+    else:
+        hostname, _, port = hostname_and_port.partition(':')
+    _check_bracketed_host(hostname)
+
 def urlsplit(url, scheme='', allow_fragments=True):
     """Parse a URL into 5 components:
     <scheme>://<netloc>/<path>?<query>#<fragment>
@@ -231,6 +269,8 @@ def urlsplit(url, scheme='', allow_fragments=True):
                 if (('[' in netloc and ']' not in netloc) or
                         (']' in netloc and '[' not in netloc)):
                     raise ValueError("Invalid IPv6 URL")
+                if '[' in netloc and ']' in netloc:
+                    _check_bracketed_netloc(netloc)
             if allow_fragments and '#' in url:
                 url, fragment = url.split('#', 1)
             if '?' in url:
@@ -258,6 +298,8 @@ def urlsplit(url, scheme='', allow_fragments=True):
         if (('[' in netloc and ']' not in netloc) or
                 (']' in netloc and '[' not in netloc)):
             raise ValueError("Invalid IPv6 URL")
+        if '[' in netloc and ']' in netloc:
+            _check_bracketed_netloc(netloc)
     if allow_fragments and '#' in url:
         url, fragment = url.split('#', 1)
     if '?' in url:
