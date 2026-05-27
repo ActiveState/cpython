@@ -205,20 +205,56 @@ text
         self._run_check("</>", [])
         self._run_check("</$>", [('comment', '$')])
         self._run_check("</", [('data', '</')])
-        self._run_check("</a", [('data', '</a')])
+        # Incomplete constructs at EOF are now closed per HTML5 rather than
+        # emitted verbatim as data (CVE-2025-6069): incomplete tags are
+        # ignored and a bogus "<!" becomes an (empty) comment.
+        self._run_check("</a", [])
         self._run_check("<a<a>", [('starttag', 'a<a', [])])
         self._run_check("</a<a>", [('endtag', 'a<a')])
-        self._run_check("<!", [('data', '<!')])
-        self._run_check("<a", [('data', '<a')])
-        self._run_check("<a foo='bar'", [('data', "<a foo='bar'")])
-        self._run_check("<a foo='bar", [('data', "<a foo='bar")])
-        self._run_check("<a foo='>'", [('data', "<a foo='>'")])
-        self._run_check("<a foo='>", [('data', "<a foo='>")])
+        self._run_check("<!", [('comment', '')])
+        self._run_check("<a", [])
+        self._run_check("<a foo='bar'", [])
+        self._run_check("<a foo='bar", [])
+        self._run_check("<a foo='>'", [])
+        self._run_check("<a foo='>", [])
         self._run_check("<a$>", [('starttag', 'a$', [])])
         self._run_check("<a$b>", [('starttag', 'a$b', [])])
         self._run_check("<a$b/>", [('startendtag', 'a$b', [])])
         self._run_check("<a$b  >", [('starttag', 'a$b', [])])
         self._run_check("<a$b  />", [('startendtag', 'a$b', [])])
+
+    def test_eof_in_comments(self):
+        # CVE-2025-6069: an unterminated comment at EOF is closed rather than
+        # rescanned, which previously made repeated incomplete constructs
+        # quadratic.
+        data = [
+            ('<!--', [('comment', '')]),
+            ('<!---', [('comment', '')]),
+            ('<!----', [('comment', '')]),
+            ('<!-----', [('comment', '-')]),
+            ('<!--foo', [('comment', 'foo')]),
+            ('<!--foo--', [('comment', 'foo')]),
+            ('<!--foo-->', [('comment', 'foo')]),
+        ]
+        for html, expected in data:
+            self._run_check(html, expected)
+
+    def test_eof_in_declarations(self):
+        # CVE-2025-6069: unterminated declarations at EOF are closed.
+        data = [
+            ('<!', [('comment', '')]),
+            ('<!DOCTYPE', [('decl', 'DOCTYPE')]),
+            ('<!DOCTYPE ', [('decl', 'DOCTYPE ')]),
+            ('<![CDATA[', [('unknown decl', 'CDATA[')]),
+            ('<![CDATA[foo', [('unknown decl', 'CDATA[foo')]),
+        ]
+        for html, expected in data:
+            self._run_check(html, expected)
+
+    def test_eof_in_incomplete_tags(self):
+        # CVE-2025-6069: incomplete tags at EOF are ignored per HTML5.
+        for html in ("<a", "<a ", "<a foo='bar", "</a", "</a "):
+            self._run_check(html, [])
 
     def test_valid_doctypes(self):
         # from http://www.w3.org/QA/2002/04/valid-dtd-list.html
