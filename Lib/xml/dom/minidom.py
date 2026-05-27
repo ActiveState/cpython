@@ -1467,7 +1467,11 @@ def _clear_id_cache(node):
     if node.nodeType == Node.DOCUMENT_NODE:
         node._id_cache.clear()
         node._id_search_stack = None
-    elif _in_document(node):
+    elif node.ownerDocument:
+        # Avoid the O(depth) _in_document() walk on every mutation; clearing
+        # the cache when the node has an owning document is sufficient and
+        # removes the quadratic cost of building deeply nested trees
+        # (CVE-2025-12084).
         node.ownerDocument._id_cache.clear()
         node.ownerDocument._id_search_stack= None
 
