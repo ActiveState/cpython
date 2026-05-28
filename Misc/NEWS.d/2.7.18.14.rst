@@ -1,0 +1,261 @@
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-8194 in tarfile
+
+A tar archive carrying a negative member offset (reachable through a PAX
+extended header with a negative ``size`` value) caused
+:meth:`TarInfo._block` to return a negative block count, which moved the
+archive offset backwards and could trigger an infinite loop (on seekable
+files) or a ``StreamError`` (on streams). ``_block`` now rejects negative
+counts with :exc:`tarfile.InvalidHeaderError`.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2026-4519 and CVE-2026-4786 in webbrowser
+
+:func:`webbrowser.open` passed an attacker-controlled URL to the browser
+command line without validation, allowing a URL beginning with ``-`` to be
+interpreted as a command-line option (argument injection). The new
+``BaseBrowser._check_url`` rejects such URLs, and ``UnixBrowser.open`` now
+validates the URL after the ``%action`` substitution so that ``%action``
+cannot be used to smuggle a leading dash past the check.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2026-0865 in wsgiref
+
+``wsgiref.headers.Headers`` now rejects control characters in header names
+and values (in ``__init__``, ``__setitem__`` and ``add_header``), preventing
+HTTP response splitting / header injection.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2026-0672 in Cookie
+
+``Cookie.Morsel`` now rejects control characters in cookie keys, values,
+coded values and attribute values, preventing ``Set-Cookie`` header
+injection.  Validation is performed where values are stored, so the
+``Morsel.update`` / ``|=`` / unpickling bypasses tracked as CVE-2026-3644
+(which do not exist in this module) cannot reintroduce the issue.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-15366 in imaplib
+
+``imaplib.IMAP4._command`` now rejects control characters in command
+arguments, preventing IMAP command injection via embedded CR/LF.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-15367 in poplib
+
+``poplib.POP3._putline`` (and the SSL override) now rejects control
+characters in the command line, preventing POP3 command injection via
+embedded CR/LF.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2026-1502 in httplib
+
+``httplib.HTTPConnection.set_tunnel`` now validates the CONNECT tunnel host
+for control characters, preventing CR/LF injection into the CONNECT request.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2024-6923 in email
+
+``email.generator.Generator`` now rejects a header whose serialized form
+contains a newline that is not part of valid folding, raising the new
+``email.errors.HeaderWriteError`` instead of emitting an injectable header.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2024-0450 in zipfile
+
+``zipfile`` now records each member's end offset and rejects archives with
+overlapping entries (a "quoted overlap" zip bomb) when an entry's compressed
+data would extend past the start of the next entry.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-8291 in zipfile
+
+``zipfile`` now validates the ZIP64 end-of-central-directory locator's
+relative offset instead of assuming the ZIP64 record is adjacent, rejecting
+archives whose locator points past the expected position.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-0938 and CVE-2024-11168 in urlparse
+
+``urlparse.urlsplit`` now allows square brackets in a URL host only when
+they enclose a valid IPv6/IPvFuture address, rejecting hosts such as
+``ex[ample].com`` or ``[not-an-ipv6]`` that previously parsed differently
+from RFC 3986 tools.  This covers both the original bracketed-host
+validation (CVE-2024-11168) and the later tightening (CVE-2025-0938).
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-6069 in HTMLParser
+
+``HTMLParser`` no longer has quadratic-time behaviour when input ends with
+unterminated constructs; at EOF such constructs are now closed per HTML5
+rather than being repeatedly rescanned.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-6075 in os.path
+
+``posixpath.expandvars`` and ``ntpath.expandvars`` now build their result in
+a single linear pass instead of rebuilding the whole string per
+substitution, removing quadratic-time behaviour on large inputs.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-12084 in xml.dom.minidom
+
+``xml.dom.minidom`` no longer walks the parent chain on every node mutation
+to clear the id cache, removing the quadratic cost of building deeply nested
+documents.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-13462 in tarfile
+
+``tarfile`` no longer normalizes an ``AREGTYPE`` header with a trailing-slash
+name to ``DIRTYPE`` when the header is a follow-up to a GNU long name/link or
+a pax header, so a crafted archive can no longer be made to interpret such a
+member differently from other tools.
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Address CVE-2025-12781 and CVE-2026-3446 in base64
+
+``base64.b64decode`` gains a ``validate`` keyword argument (default
+``False``).  When true, the input is validated against the requested
+alphabet, so the standard ``'+'``/``'/'`` characters are rejected when an
+alternative alphabet is given (CVE-2025-12781) and data after the padding is
+rejected rather than silently ignored (CVE-2026-3446).
+
+.. bpo: 0
+.. date: 2026-05-27
+.. nonce: as$i9+
+.. release date: 2026-05-27
+.. original section: Library
+.. section: Security
+
+Not affected: CVE-2025-13836, CVE-2025-15282, CVE-2025-11468, CVE-2025-1795,
+CVE-2026-3644, CVE-2024-5642 and CVE-2026-6100
+
+Several CVEs do not apply to Python 2.7 in this release.  The vulnerable
+code paths are absent or already mitigated by the existing implementation:
+
+- CVE-2025-13836 (``http.client`` Content-Length-based memory exhaustion):
+  Python 2.7's ``httplib._safe_read`` reads in bounded 1 MB (``MAXAMOUNT``)
+  chunks and never pre-allocates based on ``Content-Length``.
+
+- CVE-2025-15282 (``urllib.request.DataHandler``, the ``data:`` URL handler)
+  was added in Python 3 and does not exist in 2.7.
+
+- CVE-2025-11468 and CVE-2025-1795 affect the modern
+  ``email._header_value_parser`` machinery -- its comment folding and its
+  address-list folding (which mis-encoded a separating comma).  Both were
+  added in Python 3.
+
+- CVE-2026-3644 targets ``Morsel.update`` / ``|=`` / ``__setstate__``,
+  entry points that do not exist on 2.7's ``Cookie.Morsel``.
+
+- CVE-2024-5642 exploits NPN, the feature behind
+  ``ssl.set_npn_protocols``; NPN is removed in OpenSSL 1.1.1w and later,
+  against which this Python builds.
+
+- CVE-2026-6100 is a use-after-free in
+  ``bz2.BZ2Decompressor`` / ``lzma.LZMADecompressor`` /
+  ``zlib._ZlibDecompressor`` when a ``MemoryError`` leaves ``next_in``
+  dangling and the same decompressor is reused.  ``lzma`` and the
+  ``_ZlibDecompressor`` object (Python 3.12+) do not exist in 2.7; 2.7's
+  legacy ``bz2.BZ2Decompressor`` and zlib ``compobject`` re-set
+  ``next_in`` fresh from the argument buffer on every call and persist
+  leftover input as owned Python string objects
+  (``unused_data`` / ``unconsumed_tail``), so no dangling raw pointer is
+  carried across calls.
