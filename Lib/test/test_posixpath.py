@@ -512,6 +512,7 @@ class PosixPathTest(unittest.TestCase):
             big = 'a' * 100000 + '$FOO'
             self.assertEqual(posixpath.expandvars(big), 'a' * 100000 + 'bar')
 
+    @unittest.skipUnless(test_support.FS_NONASCII, 'need test_support.FS_NONASCII')
     def test_expandvars_nonascii_word(self):
         encoding = sys.getfilesystemencoding()
         uwnonascii = test_support.FS_NONASCII
