@@ -61,7 +61,7 @@ if sys.platform[:3] == 'win':
     # On Windows, handle the Windows error numbers
     from errno import \
         WSAEWOULDBLOCK, WSAENOTCONN, WSAEINPROGRESS, WSAEALREADY, WSAEISCONN, \
-        WSAECONNABORTED, WSAENOTCONN, WSAEBADF
+        WSAECONNABORTED, WSAECONNRESET, WSAESHUTDOWN, WSAEBADF
 else:
     # On Posix the error codes aren't duplicated, with different numbers
     WSAEWOULDBLOCK = EWOULDBLOCK
@@ -70,12 +70,15 @@ else:
     WSAEALREADY = EALREADY
     WSAEISCONN = EISCONN
     WSAECONNABORTED = ECONNABORTED
+    WSAECONNRESET = ECONNRESET
+    WSAESHUTDOWN = ESHUTDOWN
     WSAENOTCONN = ENOTCONN
     WSAEBADF = EBADF
 
 
 _DISCONNECTED = frozenset((ECONNRESET, ENOTCONN, ESHUTDOWN, ECONNABORTED, EPIPE,
-                           EBADF, WSAENOTCONN, WSAECONNABORTED, WSAEBADF))
+                           EBADF, WSAECONNRESET, WSAENOTCONN, WSAESHUTDOWN,
+                           WSAECONNABORTED, WSAEBADF))
 
 try:
     socket_map
