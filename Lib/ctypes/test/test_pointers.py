@@ -19,6 +19,8 @@ class PointersTestCase(unittest.TestCase):
         # Pointer can't set contents: has no _type_
         self.assertRaises(TypeError, A, c_ulong(33))
 
+    @unittest.skipUnless(sizeof(c_void_p) == sizeof(c_long),
+                         "test assumes c_long is pointer-sized (fails on win64)")
     def test_pass_pointers(self):
         dll = CDLL(_ctypes_test.__file__)
         func = dll._testfunc_p_p
