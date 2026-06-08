@@ -335,6 +335,70 @@ def unload_test_modules(save_modules):
             support.unload(module)
 
 
+def _suppress_crash_dialogs():
+    """Stop Windows from popping a modal dialog when a test deliberately
+    faults the C runtime, which otherwise blocks the whole run.
+
+    A handful of tests intentionally drive the CRT into an error to check
+    error handling.  For example test_ctypes' test_pass_pointers dereferences
+    a bad pointer (an access violation -- and on 64-bit the pointer is first
+    truncated because c_long is narrower than a pointer), and test_fileio's
+    testErrnoOnClosed* call read()/etc. on a descriptor whose OS handle was
+    closed underneath the object (a CRT invalid-parameter assert).  On Windows
+    each of these raises a modal dialog -- "python.exe has stopped working",
+    or, in a debug build, a CRT assert box -- that waits for a button click,
+    so the suite appears to hang.
+
+    Python 3's test driver disables these dialogs at startup; Python 2.7's
+    regrtest never did.  Mirror that here.  Best-effort throughout: setup
+    failures must never stop the tests from running.
+    """
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+    except ImportError:
+        return
+
+    # 1. Windows Error Reporting: suppress the general-protection-fault,
+    #    critical-error and open-file message boxes.  This covers the access
+    #    violation; the process still dies, but it dies instead of hanging.
+    SEM_FAILCRITICALERRORS = 0x0001
+    SEM_NOGPFAULTERRORBOX = 0x0002
+    SEM_NOOPENFILEERRORBOX = 0x8000
+    try:
+        kernel32 = ctypes.windll.kernel32
+        # SetErrorMode returns the previous flags; OR ours in rather than
+        # clobbering anything the host process already configured.
+        old = kernel32.SetErrorMode(SEM_NOGPFAULTERRORBOX)
+        kernel32.SetErrorMode(old | SEM_FAILCRITICALERRORS |
+                              SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)
+    except (OSError, AttributeError):
+        pass
+
+    # 2. Debug builds only: route CRT diagnostics (the invalid-fd assert) to
+    #    stderr instead of a modal assert box.  With the report mode set to
+    #    file, the failing CRT call reports and then returns its error value
+    #    (e.g. -1 / EBADF) rather than aborting, so the test sees the IOError
+    #    it expects.  _CrtSetReportMode lives only in the debug CRT; in a
+    #    release build it's absent (and there are no such asserts), so this
+    #    silently no-ops.
+    _CRT_WARN, _CRT_ERROR, _CRT_ASSERT = 0, 1, 2
+    _CRTDBG_MODE_FILE = 0x0001
+    _CRTDBG_FILE_STDERR = ctypes.c_void_p(-4)
+    for crt_name in ('ucrtbased', 'msvcrtd'):
+        try:
+            crt = ctypes.CDLL(crt_name)
+            set_mode = crt._CrtSetReportMode
+            set_file = crt._CrtSetReportFile
+        except (OSError, AttributeError):
+            continue
+        for report_type in (_CRT_WARN, _CRT_ERROR, _CRT_ASSERT):
+            set_mode(report_type, _CRTDBG_MODE_FILE)
+            set_file(report_type, _CRTDBG_FILE_STDERR)
+        break
+
+
 def main(tests=None, testdir=None, verbose=0, quiet=False,
          exclude=False, single=False, randomize=False, fromfile=None,
          findleaks=False, use_resources=None, trace=False, coverdir='coverage',
@@ -364,6 +428,11 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
     on the command line.
     """
     regrtest_start_time = time.time()
+
+    # Keep a deliberately-crashing test (test_ctypes, test_fileio, ...) from
+    # blocking the run on a modal Windows dialog.  Runs in -j slaves too,
+    # since they re-enter main().
+    _suppress_crash_dialogs()
 
     support.record_original_stdout(sys.stdout)
     try:
