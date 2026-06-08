@@ -151,6 +151,14 @@ import base64        # for DER-to-PEM translation
 import errno
 import warnings
 
+# On Windows the socket layer reports Winsock (WSAE*) error numbers, which on a
+# modern (UCRT/VS2015+) build no longer share values with the C-runtime errno
+# constants imported here. Recognise both spellings of "socket not connected".
+_NOT_CONNECTED_ERRORS = frozenset(
+    _e for _e in (getattr(errno, 'ENOTCONN', None),
+                  getattr(errno, 'WSAENOTCONN', None))
+    if _e is not None)
+
 if _ssl.HAS_TLS_UNIQUE:
     CHANNEL_BINDING_TYPES = ['tls-unique']
 else:
@@ -583,7 +591,7 @@ class SSLSocket(socket):
         try:
             self.getpeername()
         except socket_error as e:
-            if e.errno != errno.ENOTCONN:
+            if e.errno not in _NOT_CONNECTED_ERRORS:
                 raise
             connected = False
             blocking = self.getblocking()
@@ -597,7 +605,7 @@ class SSLSocket(socket):
             except (OSError, socket_error) as e:
 
                 # EINVAL occurs for recv(1) on non-connected on unix sockets.
-                if e.errno not in (errno.ENOTCONN, errno.EINVAL):
+                if e.errno not in _NOT_CONNECTED_ERRORS and e.errno != errno.EINVAL:
                     raise
 
                 notconn_pre_handshake_data = b''
