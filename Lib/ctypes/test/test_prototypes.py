@@ -67,6 +67,8 @@ class CharPointersTestCase(unittest.TestCase):
         self.assertEqual(func(input=None), None)
 
 
+    @unittest.skipUnless(sizeof(c_void_p) == sizeof(c_long),
+                         "test assumes c_long is pointer-sized (fails on win64)")
     def test_int_pointer_arg(self):
         func = testdll._testfunc_p_p
         func.restype = c_long
