@@ -6823,7 +6823,13 @@ posix_fdopen(PyObject *self, PyObject *args)
         struct stat buf;
         const char *msg;
         PyObject *exc;
-        if (fstat(fd, &buf) == 0 && S_ISDIR(buf.st_mode)) {
+        int res;
+        /* fstat() on a bad fd triggers the CRT invalid-parameter handler on
+           Windows; suppress it so fdopen() reports EBADF instead of aborting. */
+        _Py_BEGIN_SUPPRESS_IPH
+        res = fstat(fd, &buf);
+        _Py_END_SUPPRESS_IPH
+        if (res == 0 && S_ISDIR(buf.st_mode)) {
             PyMem_FREE(mode);
             msg = strerror(EISDIR);
             exc = PyObject_CallFunction(PyExc_IOError, "(iss)",

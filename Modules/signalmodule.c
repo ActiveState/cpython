@@ -418,9 +418,17 @@ signal_set_wakeup_fd(PyObject *self, PyObject *args)
     }
 #endif
 
-    if (fd != -1 && fstat(fd, &buf) != 0) {
-        PyErr_SetString(PyExc_ValueError, "invalid fd");
-        return NULL;
+    if (fd != -1) {
+        int res;
+        /* fstat() on a bad fd triggers the CRT invalid-parameter handler on
+           Windows; suppress it so we return ValueError instead of aborting. */
+        _Py_BEGIN_SUPPRESS_IPH
+        res = fstat(fd, &buf);
+        _Py_END_SUPPRESS_IPH
+        if (res != 0) {
+            PyErr_SetString(PyExc_ValueError, "invalid fd");
+            return NULL;
+        }
     }
 
     old_fd = wakeup_fd;

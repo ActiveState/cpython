@@ -541,14 +541,18 @@ new_buffersize(fileio *self, size_t currentsize)
     int res;
 
     Py_BEGIN_ALLOW_THREADS
+    _Py_BEGIN_SUPPRESS_IPH
     res = fstat(self->fd, &st);
+    _Py_END_SUPPRESS_IPH
     Py_END_ALLOW_THREADS
 
     if (res == 0) {
         end = st.st_size;
 
         Py_BEGIN_ALLOW_THREADS
+        _Py_BEGIN_SUPPRESS_IPH
         pos = lseek(self->fd, 0L, SEEK_CUR);
+        _Py_END_SUPPRESS_IPH
         Py_END_ALLOW_THREADS
 
         /* Files claiming a size smaller than SMALLCHUNK may
