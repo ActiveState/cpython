@@ -55,7 +55,29 @@ def _is_fd_in_blocking_mode(sock):
         fcntl.fcntl(sock, fcntl.F_GETFL, os.O_NONBLOCK) & os.O_NONBLOCK)
 
 
+def _have_socket_can():
+    """Check whether CAN sockets are supported on this host."""
+    try:
+        s = socket.socket(socket.AF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
+    except (AttributeError, socket.error, OSError):
+        return False
+    else:
+        s.close()
+    return True
+
+def _have_socket_alg():
+    """Check whether AF_ALG sockets are supported on this host."""
+    try:
+        s = socket.socket(socket.AF_ALG, socket.SOCK_SEQPACKET, 0)
+    except (AttributeError, socket.error, OSError):
+        return False
+    else:
+        s.close()
+    return True
+
+
 HAVE_SOCKET_CAN = _have_socket_can()
+HAVE_SOCKET_ALG = _have_socket_alg()
 
 class SocketTCPTest(unittest.TestCase):
 
