@@ -320,7 +320,11 @@ class CommonTest(unittest.TestCase):
 
     def test_bigrepeat(self):
         import sys
-        if sys.maxint <= 2147483647:
+        # Use maxsize (Py_ssize_t), not maxint: on 64-bit Windows (LLP64)
+        # sys.maxint is still 2**31-1 while the address space is 64-bit, so
+        # gating on maxint wrongly runs the 32-bit overflow check and tries to
+        # build a ~34 GB sequence that never raises MemoryError.
+        if sys.maxsize <= 2147483647:
             x = self.type2test([0])
             x *= 2**16
             self.assertRaises(MemoryError, x.__mul__, 2**16)
