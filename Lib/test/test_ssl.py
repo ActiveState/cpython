@@ -18,6 +18,13 @@ import datetime
 import gc
 import os
 import errno
+# On Windows the socket layer reports Winsock (WSAE*) error numbers, which on a
+# modern UCRT build no longer share values with the C-runtime errno constants;
+# accept both spellings of "socket not connected".
+_ENOTCONN = frozenset(
+    _e for _e in (getattr(errno, 'ENOTCONN', None),
+                  getattr(errno, 'WSAENOTCONN', None))
+    if _e is not None)
 import pprint
 import shutil
 import urllib2
@@ -2879,14 +2886,14 @@ else:
             with closing(context.wrap_socket(socket.socket())) as sock:
                 with self.assertRaises(socket.error) as cm:
                     sock.getpeercert()
-                self.assertEqual(cm.exception.errno, errno.ENOTCONN)
+                self.assertIn(cm.exception.errno, _ENOTCONN)
 
         def test_do_handshake_enotconn(self):
             context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
             with closing(context.wrap_socket(socket.socket())) as sock:
                 with self.assertRaises(socket.error) as cm:
                     sock.do_handshake()
-                self.assertEqual(cm.exception.errno, errno.ENOTCONN)
+                self.assertIn(cm.exception.errno, _ENOTCONN)
 
         def test_no_shared_ciphers(self):
             server_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -3271,6 +3278,8 @@ else:
                 self.assertRaises(ValueError, s.read, 1024)
                 self.assertRaises(ValueError, s.write, b'hello')
 
+        @unittest.skipUnless(hasattr(ssl, 'TLSVersion'),
+                             "TLS 1.3 post-handshake auth API not available")
         def test_pha_no_pha_client(self):
             client_context, server_context, hostname = testing_context()
             server_context.post_handshake_auth = True
@@ -3286,6 +3295,8 @@ else:
                     s.write(b'PHA')
                     self.assertIn(b'extension not received', s.recv(1024))
 
+        @unittest.skipUnless(hasattr(ssl, 'TLSVersion'),
+                             "TLS 1.3 post-handshake auth API not available")
         def test_pha_no_pha_server(self):
             # server doesn't have PHA enabled, cert is requested in handshake
             client_context, server_context, hostname = testing_context()
@@ -3305,6 +3316,8 @@ else:
                     s.write(b'HASCERT')
                     self.assertEqual(s.recv(1024), b'TRUE\n')
 
+        @unittest.skipUnless(hasattr(ssl, 'TLSVersion'),
+                             "TLS 1.3 post-handshake auth API not available")
         def test_pha_not_tls13(self):
             # TLS 1.2
             client_context, server_context, hostname = testing_context()
@@ -3322,6 +3335,8 @@ else:
                     s.write(b'PHA')
                     self.assertIn(b'WRONG_SSL_VERSION', s.recv(1024))
 
+        @unittest.skipUnless(hasattr(ssl, 'TLSVersion'),
+                             "TLS 1.3 post-handshake auth API not available")
         def test_bpo37428_pha_cert_none(self):
             # verify that post_handshake_auth does not implicitly enable cert
             # validation.
