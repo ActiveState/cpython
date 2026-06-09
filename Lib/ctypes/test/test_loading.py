@@ -54,7 +54,10 @@ class LoaderTest(unittest.TestCase):
     @unittest.skipUnless(os.name in ("nt", "ce"),
                          'test specific to Windows (NT/CE)')
     def test_load_library(self):
-        self.assertIsNotNone(libc_name)
+        # libc_name (find_library("c")) is None on VS2015+/UCRT builds, where
+        # the C runtime is no longer loadable as a single DLL. That is expected
+        # (see the skipped tests above); this test really exercises loading
+        # kernel32, which is independent of libc_name.
         if is_resource_enabled("printing"):
             print find_library("kernel32")
             print find_library("user32")
