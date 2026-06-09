@@ -1,5 +1,8 @@
 import unittest
 from test import test_support
+# This module was partially forward-ported and refers to the support module
+# under both names; bind 'support' to the same module so both resolve.
+support = test_support
 
 import errno
 import itertools
