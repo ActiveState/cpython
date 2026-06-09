@@ -441,6 +441,40 @@ def requires_mac_ver(*min_version):
     return decorator
 
 
+def _requires_unix_version(sysname, min_version):
+    """Decorator raising SkipTest if the OS is `sysname` and the version is
+    less than `min_version`."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kw):
+            if platform.system() == sysname:
+                version_txt = platform.release().split('-', 1)[0]
+                try:
+                    version = tuple(map(int, version_txt.split('.')))
+                except ValueError:
+                    pass
+                else:
+                    if version < min_version:
+                        min_version_txt = '.'.join(map(str, min_version))
+                        raise unittest.SkipTest(
+                            "%s version %s or higher required, not %s"
+                            % (sysname, min_version_txt, version_txt))
+            return func(*args, **kw)
+        wrapper.min_version = min_version
+        return wrapper
+    return decorator
+
+
+def requires_linux_version(*min_version):
+    """Decorator raising SkipTest if the OS is Linux and the Linux kernel
+    version is less than min_version.
+
+    For example, @requires_linux_version(2, 6, 32) raises SkipTest if the
+    Linux kernel version is less than 2.6.32.
+    """
+    return _requires_unix_version('Linux', min_version)
+
+
 # Don't use "localhost", since resolving it uses the DNS under recent
 # Windows versions (see issue #18792).
 HOST = "127.0.0.1"
