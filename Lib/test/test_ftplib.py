@@ -142,6 +142,9 @@ class DummyFTPHandler(asynchat.async_chat):
         # sends back the received string (used by the test suite)
         self.push(arg)
 
+    def cmd_noop(self, arg):
+        self.push('200 noop ok')
+
     def cmd_user(self, arg):
         self.push('331 username ok')
 
@@ -647,6 +650,10 @@ class TestFTPClass(TestCase):
         self.assertEqual(self.server.handler_instance.last_received_cmd, 'quit')
         self.assertFalse(is_client_connected())
 
+    @skipUnless(os.name != 'nt',
+                "find_unused_port() races on Windows: the source port can be "
+                "taken between selection and bind, making the exact-port "
+                "assertion flaky")
     def test_source_address(self):
         self.client.quit()
         port = test_support.find_unused_port()
@@ -660,6 +667,10 @@ class TestFTPClass(TestCase):
                 self.skipTest("couldn't bind to port %d" % port)
             raise
 
+    @skipUnless(os.name != 'nt',
+                "find_unused_port() races on Windows: the source port can be "
+                "taken between selection and bind, making the exact-port "
+                "assertion flaky")
     def test_source_address_passive_connection(self):
         port = test_support.find_unused_port()
         self.client.source_address = (HOST, port)
