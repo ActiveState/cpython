@@ -99,7 +99,9 @@ Address CVE-2026-0865 in wsgiref
 
 ``wsgiref.headers.Headers`` now rejects control characters in header names
 and values (in ``__init__``, ``__setitem__`` and ``add_header``), preventing
-HTTP response splitting / header injection.
+HTTP response splitting / header injection.  The check covers both byte
+strings and ``unicode``, so a ``unicode`` name or value carrying control
+characters cannot bypass it.
 
 .. bpo: 0
 .. date: 2026-05-27
@@ -165,6 +167,7 @@ Address CVE-2024-6923 in email
 ``email.generator.Generator`` now rejects a header whose serialized form
 contains a newline that is not part of valid folding, raising the new
 ``email.errors.HeaderWriteError`` instead of emitting an injectable header.
+A value ending in a bare carriage return or line feed is rejected as well.
 
 .. bpo: 0
 .. date: 2026-05-27

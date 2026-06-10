@@ -309,8 +309,14 @@ class HeaderTests(TestCase):
         self.assertRaises(ValueError, h.add_header, 'Foo', 'a\nb')
         self.assertRaises(ValueError, h.add_header, 'Foo', 'ok', baz='x\ry')
         self.assertRaises(ValueError, Headers, [('Foo', 'a\nb')])
+        # unicode names/values must be rejected too (a str-only check would
+        # let a unicode value carrying control characters slip through).
+        self.assertRaises(ValueError, h.__setitem__, 'Foo', u'bar\r\nInjected: 1')
+        self.assertRaises(ValueError, h.__setitem__, u'Ba\nd', 'value')
+        self.assertRaises(ValueError, Headers, [(u'Foo', u'a\nb')])
         # Benign headers still work.
         h['Foo'] = 'bar'
+        h[u'Bar'] = u'baz'
         h.add_header('Content-Disposition', 'attachment', filename='ok.txt')
 
     def testMappingInterface(self):
