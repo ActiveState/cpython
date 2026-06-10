@@ -1,4 +1,62 @@
 .. bpo: 0
+.. date: 2026-06-09
+.. nonce: as$win1
+.. release date: 2026-06-09
+.. original section: Windows
+.. section: Windows
+
+Fix interpreter crashes and hangs on Windows when an invalid or closed file
+descriptor is used. On builds compiled with a modern (VS2015+/UCRT) toolchain,
+a C-runtime call on a bad descriptor invokes the invalid-parameter handler and
+fast-fails (surfacing as a "stopped working" dialog). The previously unguarded
+``fstat``/``lseek`` calls in ``FileIO`` buffer sizing, in ``os.fdopen``
+(directory check), and in ``signal.set_wakeup_fd`` are now wrapped in
+``_Py_BEGIN_SUPPRESS_IPH`` so they return ``EBADF`` as intended.
+
+.. bpo: 0
+.. date: 2026-06-09
+.. nonce: as$win2
+.. release date: 2026-06-09
+.. original section: Library
+.. section: Windows
+
+``ctypes.util.find_msvcrt()`` now returns ``None`` on builds made with Visual
+Studio 2015 or later, instead of returning a non-existent ``msvcrXXX.dll``
+name (the UCRT is not loadable as a single DLL; backport of bpo-23606).
+Consequently ``ctypes.util.find_library("c")`` returns ``None`` on such builds.
+
+.. bpo: 0
+.. date: 2026-06-09
+.. nonce: as$win3
+.. release date: 2026-06-09
+.. original section: Library
+.. section: Library
+
+``asyncore`` now recognises the Winsock error codes ``WSAECONNRESET`` and
+``WSAESHUTDOWN`` as disconnects, and ``ssl`` accepts ``WSAENOTCONN`` when
+probing whether a socket is connected. On modern Windows builds the C-runtime
+``errno`` constants no longer share values with the Winsock error numbers
+reported by the socket layer, which previously caused spurious errors on
+connection reset and when wrapping a not-yet-connected socket.
+
+.. bpo: 0
+.. date: 2026-06-09
+.. nonce: as$tst1
+.. release date: 2026-06-09
+.. original section: Tests
+.. section: Tests
+
+Windows test-suite fixes for 64-bit/UCRT builds: the regression-test runner
+now suppresses Windows error-reporting and CRT-assert dialogs at startup so a
+deliberately-faulting test no longer blocks the run; ``test_bigrepeat`` is
+gated on ``sys.maxsize`` rather than ``sys.maxint`` (which is still 2**31-1 on
+64-bit Windows); ``test.support`` regained ``requires_linux_version``; and
+``test_socket``, ``test_ssl``, ``test_ctypes`` and ``test_ftplib`` were
+adjusted for 64-bit Windows and the Winsock error-code differences. Note: run
+the suite with the build's ``bin`` and ``DLLs`` directories on ``PATH`` so
+extension modules such as ``pyexpat`` can resolve their dependency DLLs.
+
+.. bpo: 0
 .. date: 2026-05-27
 .. nonce: as$i9+
 .. release date: 2026-05-27
