@@ -16,9 +16,11 @@ from email.header import Header
 from email.errors import HeaderWriteError
 
 # Matches a CR/LF that is NOT part of a valid header folding (i.e. not
-# immediately followed by folding whitespace).  Used to detect injected
-# newlines in generated headers (CVE-2024-6923).
-NEWLINE_WITHOUT_FWSP = re.compile(r'\r\n[^ \t]|\r[^ \n\t]|\n[^ \t]')
+# immediately followed by folding whitespace), including a bare CR/LF at the
+# end of the string.  Used to detect injected newlines in generated headers
+# (CVE-2024-6923).  A '\r\n' need not be matched on its own: a CRLF that isn't
+# a valid fold is already caught by the lone-LF branch or the end anchor.
+NEWLINE_WITHOUT_FWSP = re.compile(r'\r[^ \n\t]|\n[^ \t]|[\r\n]$')
 
 UNDERSCORE = '_'
 NL = '\n'

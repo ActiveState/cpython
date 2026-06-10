@@ -87,7 +87,13 @@ class TestMessageAPI(TestEmailBase):
         from cStringIO import StringIO
         for bad in ('value\r\nInjected: header',
                     'value\nInjected: header',
-                    'value\rstuff'):
+                    'value\rstuff',
+                    # A bare CR/LF/CRLF at end-of-string is also an injected
+                    # newline: the generator appends its own newline after it,
+                    # prematurely terminating the header block.
+                    'value\n',
+                    'value\r',
+                    'value\r\n'):
             msg = Message()
             msg['Subject'] = bad
             g = Generator(StringIO(), maxheaderlen=0)

@@ -18,7 +18,10 @@ _control_chars_re = re.compile(r'[\x00-\x1f\x7f]')
 
 def _check_string(value):
     """Reject header names/values containing control characters."""
-    if isinstance(value, str) and _control_chars_re.search(value):
+    # Check both str and unicode: in Python 2 a unicode header value would
+    # otherwise bypass the guard and could still be serialized, leaving the
+    # response-splitting protection incomplete.
+    if isinstance(value, basestring) and _control_chars_re.search(value):
         raise ValueError("Control characters not allowed in headers")
     return value
 
