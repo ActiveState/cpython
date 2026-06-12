@@ -18,13 +18,6 @@ import datetime
 import gc
 import os
 import errno
-# On Windows the socket layer reports Winsock (WSAE*) error numbers, which on a
-# modern UCRT build no longer share values with the C-runtime errno constants;
-# accept both spellings of "socket not connected".
-_ENOTCONN = frozenset(
-    _e for _e in (getattr(errno, 'ENOTCONN', None),
-                  getattr(errno, 'WSAENOTCONN', None))
-    if _e is not None)
 import pprint
 import shutil
 import urllib2
@@ -2886,14 +2879,14 @@ else:
             with closing(context.wrap_socket(socket.socket())) as sock:
                 with self.assertRaises(socket.error) as cm:
                     sock.getpeercert()
-                self.assertIn(cm.exception.errno, _ENOTCONN)
+                self.assertIn(cm.exception.errno, ssl._NOT_CONNECTED_ERRORS)
 
         def test_do_handshake_enotconn(self):
             context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
             with closing(context.wrap_socket(socket.socket())) as sock:
                 with self.assertRaises(socket.error) as cm:
                     sock.do_handshake()
-                self.assertIn(cm.exception.errno, _ENOTCONN)
+                self.assertIn(cm.exception.errno, ssl._NOT_CONNECTED_ERRORS)
 
         def test_no_shared_ciphers(self):
             server_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)

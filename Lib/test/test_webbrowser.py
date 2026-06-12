@@ -14,8 +14,9 @@ class FakeUnixBrowser(webbrowser.UnixBrowser):
 
 
 class CheckURLTest(unittest.TestCase):
-    # gh-bpo: webbrowser.open() must not let an attacker-controlled URL be
-    # turned into a command-line option (CVE-2026-4519 / CVE-2026-4786).
+    # CVE-2026-4519 / CVE-2026-4786: webbrowser.open() must not let an
+    # attacker-controlled URL be turned into a command-line option
+    # (argument injection).
 
     def test_check_url_rejects_leading_dash(self):
         for bad in ("-remote", "--incognito", "  -leadingspace", "\t-tab"):
