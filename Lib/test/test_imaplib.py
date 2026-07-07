@@ -538,6 +538,21 @@ class NewIMAPTestsMixin():
         self.assertEqual(data[0], b'Returned to authenticated state. (Success)')
         self.assertEqual(client.state, 'AUTH')
 
+    def test_control_characters(self):
+        client, server = self._setup(SimpleIMAPHandler)
+        client.login('user', 'pass')
+        for c in '\0\r\n':
+            with self.assertRaises(ValueError):
+                client.select(f'a{c}b')
+        # Other control characters are valid in a quoted string and can
+        # occur in mailbox names returned by the server, so they must
+        # still be accepted.
+        for c in support.control_characters_c0():
+            if c in '\0\r\n':
+                continue
+            typ, _ = client.select(f'a{c}b')
+            self.assertEqual(typ, 'OK')
+
 
 class NewIMAPTests(NewIMAPTestsMixin, unittest.TestCase):
     imap_class = imaplib.IMAP4

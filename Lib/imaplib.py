@@ -132,7 +132,9 @@ Untagged_status = re.compile(
 # We compile these in _mode_xxx.
 _Literal = br'.*{(?P<size>\d+)}$'
 _Untagged_status = br'\* (?P<data>\d+) (?P<type>[A-Z-]+)( (?P<data2>.*))?'
-
+# Only NUL, CR and LF are unsafe (they cannot be represented even in
+# a quoted string, and CR/LF would end the command line early).
+_control_chars = re.compile(b'[\x00\r\n]')
 
 
 class IMAP4:
@@ -994,6 +996,8 @@ class IMAP4:
             if arg is None: continue
             if isinstance(arg, str):
                 arg = bytes(arg, self._encoding)
+            if _control_chars.search(arg):
+                raise ValueError("NUL, CR and LF not allowed in commands")
             data = data + b' ' + arg
 
         literal = self.literal
