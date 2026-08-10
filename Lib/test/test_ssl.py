@@ -1495,6 +1495,8 @@ class ContextTests(unittest.TestCase):
             ctx.load_verify_locations(cadata="broken")
         with self.assertRaisesRegex(ssl.SSLError, "not enough data"):
             ctx.load_verify_locations(cadata=b"broken")
+        with self.assertRaises(ssl.SSLError):
+            ctx.load_verify_locations(cadata=cacert_der + b"A")
 
 
     def test_load_dh_params(self):
