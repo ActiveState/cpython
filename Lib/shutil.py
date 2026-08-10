@@ -898,31 +898,9 @@ def _unpack_zipfile(filename, extract_dir):
     if not zipfile.is_zipfile(filename):
         raise ReadError("%s is not a zip file" % filename)
 
-    zip = zipfile.ZipFile(filename)
-    try:
-        for info in zip.infolist():
-            name = info.filename
-
-            # don't extract absolute paths or ones with .. in them
-            if name.startswith('/') or '..' in name:
-                continue
-
-            target = os.path.join(extract_dir, *name.split('/'))
-            if not target:
-                continue
-
-            _ensure_directory(target)
-            if not name.endswith('/'):
-                # file
-                data = zip.read(info.filename)
-                f = open(target, 'wb')
-                try:
-                    f.write(data)
-                finally:
-                    f.close()
-                    del data
-    finally:
-        zip.close()
+    with zipfile.ZipFile(filename) as zip:
+        zip._ignore_invalid_names = True
+        zip.extractall(extract_dir)
 
 def _unpack_tarfile(filename, extract_dir, *, filter=None):
     """Unpack tar/tar.gz/tar.bz2/tar.xz `filename` to `extract_dir`
