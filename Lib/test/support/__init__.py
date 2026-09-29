@@ -2391,6 +2391,23 @@ def skip_unless_symlink(test):
     msg = "Requires functional symlink implementation"
     return test if ok else unittest.skip(msg)(test)
 
+
+_can_hardlink = None
+
+def can_hardlink():
+    global _can_hardlink
+    if _can_hardlink is None:
+        # Android blocks hard links using SELinux
+        # (https://stackoverflow.com/q/32365690).
+        _can_hardlink = hasattr(os, "link") and not is_android
+    return _can_hardlink
+
+def skip_unless_hardlink(test):
+    """Skip decorator for tests that require functional hardlink"""
+    ok = can_hardlink()
+    msg = "requires hardlink support"
+    return test if ok else unittest.skip(msg)(test)
+
 _buggy_ucrt = None
 def skip_if_buggy_ucrt_strfptime(test):
     """
