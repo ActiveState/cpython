@@ -2368,6 +2368,7 @@ class PyBuildExt(build_ext):
                     '_ssl_data.h',
                     '_ssl_data_111.h',
                     '_ssl_data_300.h',
+                    '_ssl/distrusted_spki.h',
                 ]))
         else:
             self.missing.append('_ssl')
