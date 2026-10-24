@@ -66,6 +66,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Modules\_ssl_distrusted_spki.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="..\Modules\_ssl.c" />
     <ClCompile Include="$(opensslIncludeDir)\applink.c">
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;$(PreprocessorDefinitions)</PreprocessorDefinitions>
