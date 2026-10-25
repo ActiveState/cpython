@@ -15,7 +15,8 @@ sys.path.append(os.path.abspath('includes'))
 
 extensions = ['sphinx.ext.coverage', 'sphinx.ext.doctest',
               'pyspecific', 'c_annotations', 'escape4chm',
-              'asdl_highlight', 'peg_highlight']
+              'asdl_highlight', 'peg_highlight',
+              'sphinx.ext.extlinks']
 
 
 doctest_global_setup = '''
@@ -239,3 +240,8 @@ c_allow_pre_v3 = True
 # bpo-40204: Disable warnings on Sphinx 2 syntax of the C domain since the
 # documentation is built with -W (warnings treated as errors).
 c_warn_on_allowed_pre_v3 = False
+
+# sphinx.ext.extlinks config
+extlinks = {
+    'cve': ('https://www.cve.org/CVERecord?id=CVE-%s', 'CVE-%s'),
+}
