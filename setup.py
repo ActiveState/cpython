@@ -1789,7 +1789,8 @@ class PyBuildExt(build_ext):
             # bpo-44394: libexpat uses isnan() of math.h and needs linkage
             # against the libm
             expat_lib = ['m']
-            expat_sources = ['expat/xmlparse.c',
+            expat_sources = ['expat/xcs.c',
+                             'expat/xmlparse.c',
                              'expat/xmlrole.c',
                              'expat/xmltok.c']
             expat_depends = ['expat/ascii.h',
@@ -1800,6 +1801,7 @@ class PyBuildExt(build_ext):
                              'expat/internal.h',
                              'expat/latin1tab.h',
                              'expat/utf8tab.h',
+                             'expat/xcs.h',
                              'expat/xmlrole.h',
                              'expat/xmltok.h',
                              'expat/xmltok_impl.h'
