@@ -16,6 +16,23 @@ module pyexpat
 
 #define XML_COMBINED_VERSION (10000*XML_MAJOR_VERSION+100*XML_MINOR_VERSION+XML_MICRO_VERSION)
 
+/* 3.7 has no pycore compiler-diagnostic macros (added in 3.10). */
+#ifndef _Py_COMP_DIAG_PUSH
+#  define _Py_COMP_DIAG_PUSH
+#  define _Py_COMP_DIAG_IGNORE_DEPR_DECLS
+#  define _Py_COMP_DIAG_POP
+#endif
+
+#if XML_COMBINED_VERSION >= 20900
+#  define EXPAT_GetCurrentLineNumber XML_GetCurrentLineNumber64
+#  define EXPAT_GetCurrentColumnNumber XML_GetCurrentColumnNumber64
+#  define EXPAT_GetCurrentByteIndex XML_GetCurrentByteIndex64
+#else
+#  define EXPAT_GetCurrentLineNumber XML_GetCurrentLineNumber
+#  define EXPAT_GetCurrentColumnNumber XML_GetCurrentColumnNumber
+#  define EXPAT_GetCurrentByteIndex XML_GetCurrentByteIndex
+#endif
+
 static XML_Memory_Handling_Suite ExpatMemoryHandler = {
     PyObject_Malloc, PyObject_Realloc, PyObject_Free};
 
@@ -119,6 +136,16 @@ set_error_attr(PyObject *err, const char *name, int value)
     return 1;
 }
 
+static int
+set_error_attr_location(PyObject *err, const char *name,
+                        unsigned long long value)
+{
+    PyObject *v = PyLong_FromUnsignedLongLong(value);
+    int ok = v != NULL && PyObject_SetAttrString(err, name, v) != -1;
+    Py_XDECREF(v);
+    return ok;
+}
+
 /* Build and set an Expat exception, including positioning
  * information.  Always returns NULL.
  */
@@ -128,10 +155,10 @@ set_error(xmlparseobject *self, enum XML_Error code)
     PyObject *err;
     PyObject *buffer;
     XML_Parser parser = self->itself;
-    int lineno = XML_GetErrorLineNumber(parser);
-    int column = XML_GetErrorColumnNumber(parser);
+    unsigned long long lineno = EXPAT_GetCurrentLineNumber(parser);
+    unsigned long long column = EXPAT_GetCurrentColumnNumber(parser);
 
-    buffer = PyUnicode_FromFormat("%s: line %i, column %i",
+    buffer = PyUnicode_FromFormat("%s: line %llu, column %llu",
                                   XML_ErrorString(code), lineno, column);
     if (buffer == NULL)
         return NULL;
@@ -139,8 +166,8 @@ set_error(xmlparseobject *self, enum XML_Error code)
     Py_DECREF(buffer);
     if (  err != NULL
           && set_error_attr(err, "code", code)
-          && set_error_attr(err, "offset", column)
-          && set_error_attr(err, "lineno", lineno)) {
+          && set_error_attr_location(err, "offset", column)
+          && set_error_attr_location(err, "lineno", lineno)) {
         PyErr_SetObject(ErrorObject, err);
     }
     Py_XDECREF(err);
@@ -953,13 +980,20 @@ pyexpat_xmlparser_GetInputContext_impl(xmlparseobject *self)
 /*[clinic end generated code: output=a88026d683fc22cc input=034df8712db68379]*/
 {
     if (self->in_callback) {
+#if XML_COMBINED_VERSION >= 20900
+        int64_t offset;
+        uint64_t size;
+        const char *buffer
+            = XML_GetInputContext64(self->itself, &offset, &size);
+#else
         int offset, size;
         const char *buffer
             = XML_GetInputContext(self->itself, &offset, &size);
+#endif
 
         if (buffer != NULL)
             return PyBytes_FromStringAndSize(buffer + offset,
-                                              size - offset);
+                                              (Py_ssize_t)(size - offset));
         else
             Py_RETURN_NONE;
     }
@@ -1363,25 +1397,25 @@ xmlparse_getattro(xmlparseobject *self, PyObject *nameobj)
             return PyLong_FromLong((long)
                                   XML_GetErrorCode(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorLineNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorLineNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentLineNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorColumnNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorColumnNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentColumnNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorByteIndex"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorByteIndex(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentByteIndex(self->itself));
     }
     if (first_char == 'C') {
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentLineNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentLineNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentLineNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentColumnNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentColumnNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentColumnNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentByteIndex"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentByteIndex(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentByteIndex(self->itself));
     }
     if (first_char == 'b') {
         if (_PyUnicode_EqualToASCIIString(nameobj, "buffer_size"))
@@ -1948,8 +1982,11 @@ MODULE_INITFUNC(void)
     capi.MICRO_VERSION = XML_MICRO_VERSION;
     capi.ErrorString = XML_ErrorString;
     capi.GetErrorCode = XML_GetErrorCode;
+_Py_COMP_DIAG_PUSH
+_Py_COMP_DIAG_IGNORE_DEPR_DECLS
     capi.GetErrorColumnNumber = XML_GetErrorColumnNumber;
     capi.GetErrorLineNumber = XML_GetErrorLineNumber;
+_Py_COMP_DIAG_POP
     capi.Parse = XML_Parse;
     capi.ParserCreate_MM = XML_ParserCreate_MM;
     capi.ParserFree = XML_ParserFree;
