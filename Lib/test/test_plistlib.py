@@ -962,16 +962,16 @@ class TestBinaryPlistlib(unittest.TestCase):
                     plistlib.loads(b'bplist00' + data, fmt=plistlib.FMT_BINARY)
 
     def test_truncated_large_data(self):
-        self.addCleanup(os_helper.unlink, os_helper.TESTFN)
+        self.addCleanup(support.unlink, support.TESTFN)
         def check(data):
-            with open(os_helper.TESTFN, 'wb') as f:
+            with open(support.TESTFN, 'wb') as f:
                 f.write(data)
             # buffered file
-            with open(os_helper.TESTFN, 'rb') as f:
+            with open(support.TESTFN, 'rb') as f:
                 with self.assertRaises(plistlib.InvalidFileException):
                     plistlib.load(f, fmt=plistlib.FMT_BINARY)
             # unbuffered file
-            with open(os_helper.TESTFN, 'rb', buffering=0) as f:
+            with open(support.TESTFN, 'rb', buffering=0) as f:
                 with self.assertRaises(plistlib.InvalidFileException):
                     plistlib.load(f, fmt=plistlib.FMT_BINARY)
         for w in range(20, 64):

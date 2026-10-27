@@ -1681,7 +1681,7 @@ class TestArchives(BaseTest, unittest.TestCase):
 
         dstdir2 = os.path.join(self.mkdtemp(), 'dst')
         os.mkdir(dstdir2)
-        with os_helper.change_cwd(dstdir2):
+        with support.change_cwd(dstdir2):
             unpack_archive(zipname, '')
             self.assertTrue(os.path.isfile(os.path.join('good', 'file')))
             self.assertTrue(os.path.isfile('good..file'))

@@ -252,7 +252,7 @@ class MacOSXOSAScriptTest(unittest.TestCase):
     def setUp(self):
         # Ensure that 'BROWSER' is not set to 'open' or something else.
         # See: https://github.com/python/cpython/issues/131254.
-        ctx = os_helper.EnvironmentVarGuard()
+        ctx = support.EnvironmentVarGuard()
         env = ctx.__enter__()
         self.addCleanup(ctx.__exit__)
         env.unset("BROWSER")

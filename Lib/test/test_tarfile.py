@@ -1036,6 +1036,7 @@ class GNUReadTest(LongnameTest, ReadTest, unittest.TestCase):
 
     subdir = "gnu"
     longnametype = tarfile.GNUTYPE_LONGNAME
+    format = tarfile.GNU_FORMAT
 
     # Since 3.2 tarfile is supposed to accurately restore sparse members and
     # produce files with holes. This is what we actually want to test here.
@@ -1095,6 +1096,7 @@ class PaxReadTest(LongnameTest, ReadTest, unittest.TestCase):
 
     subdir = "pax"
     longnametype = tarfile.XHDTYPE
+    format = tarfile.PAX_FORMAT
 
     def test_pax_global_headers(self):
         tar = tarfile.open(tarname, encoding="iso8859-1")
@@ -4077,7 +4079,7 @@ class TestExtractionFilters(unittest.TestCase):
                     uid=1337, gid=1337, uname="", gname="", mode='-rwxr-xr-x')
 
         with (
-            os_helper.temp_dir() as tmpdir,
+            support.temp_dir() as tmpdir,
             arc.open() as tar,
             unittest.mock.patch("os.chown") as mock_chown,
             unittest.mock.patch("os.lchown") as mock_lchown,
@@ -4112,7 +4114,7 @@ class TestExtractionFilters(unittest.TestCase):
                     uid=1337, gid=1337, uname="", gname="", mode='-rwxr-xr-x')
 
         with (
-            os_helper.temp_dir() as tmpdir,
+            support.temp_dir() as tmpdir,
             arc.open() as tar,
             unittest.mock.patch("os.chown") as mock_chown,
             unittest.mock.patch("os.lchown") as mock_lchown,
@@ -4147,7 +4149,7 @@ class TestExtractionFilters(unittest.TestCase):
             # link: don't overwrite the mode
             return member.replace(mode=None)
         tempdir = pathlib.Path(TEMPDIR) / 'extract'
-        with os_helper.temp_dir(tempdir), arc.open() as tar:
+        with support.temp_dir(tempdir), arc.open() as tar:
             tar.extract("link", path=tempdir, filter=testing_filter)
             path = tempdir / 'link'
             if sys.platform != 'win32':
