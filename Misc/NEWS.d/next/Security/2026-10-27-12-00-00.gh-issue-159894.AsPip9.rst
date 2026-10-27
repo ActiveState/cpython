@@ -1,0 +1,5 @@
+Upgrade the bundled pip in :mod:`ensurepip` to the ActiveState security
+release 26.0.1.post1 (the last pip that supports Python 3.9). Its vendored
+certifi 2026.10.19 no longer trusts the compromised eMudhra emSign CA
+(GHSA-6q48-6c7w-9gw2), and it patches CVE-2026-3219, CVE-2026-6357,
+CVE-2026-8643 and CVE-2026-13346.
