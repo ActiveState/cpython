@@ -1,0 +1,3 @@
+Upgrade the bundled pip in :mod:`ensurepip` to 26.2.2, which no longer trusts
+the compromised eMudhra emSign CA (the pip 23.0.1 it replaces ships a
+vendored certifi that still trusts it).
