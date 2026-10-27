@@ -1705,6 +1705,10 @@ Notable changes in 3.9.25.1
 This is an ActiveState security release of the 3.9 line, which is past
 its upstream end of life.
 
+It carries the security fixes released upstream in Python 3.10.20,
+3.10.21, 3.10.22 and 3.11.18 that apply to 3.9, on top of 3.9.25.  The
+full list of changes is in the changelog; the notable ones are below.
+
 ssl
 ---
 
@@ -1715,3 +1719,89 @@ ssl
   that applies even when an application supplies its own root CA bundle, and
   regardless of whether the platform trust store has removed trust.
   (Contributed by Christian Heimes in :gh:`160040` for CVE 2026-115557.)
+
+ensurepip
+---------
+
+* The bundled ``pip`` is upgraded from 23.0.1 to 26.0.1.post1, the ActiveState
+  security release of pip 26.0.1 (the last pip that supports Python 3.9).
+  pip loads its own vendored ``certifi`` CA bundle in addition to the system
+  trust store; the bundle in 26.0.1.post1 (certifi 2026.10.19) drops the
+  compromised eMudhra emSign root, and the release also patches
+  CVE-2026-3219, CVE-2026-6357, CVE-2026-8643 and CVE-2026-13346.
+
+tarfile
+-------
+
+* The ``data`` and ``tar`` extraction filters reject several more path and
+  link escapes: hard links to symbolic links (:gh:`157190`), symlinks created
+  through the hard-link extraction fallback (:gh:`151558`), members whose name
+  leaves the destination and comes back (:gh:`155999`), link targets that
+  differ from the value written to disk (:gh:`149486`), and links that replace
+  the destination directory itself (:gh:`160097`, CVE 2026-114583).
+* :meth:`~tarfile.TarFile.extract` applies the filter to link fallbacks and
+  honors a ``None`` result from it (:gh:`151987`, :gh:`157265`).
+
+http, email, urllib and wsgiref
+-------------------------------
+
+* Control characters are rejected in :mod:`http.cookies` morsels
+  (:gh:`143919`, :gh:`145599`), ``data:`` URL media types (:gh:`143925`),
+  :mod:`wsgiref` headers and status lines (:gh:`143916`, :gh:`144370`) and
+  HTTP tunnel headers (:gh:`146211`).
+* :mod:`http.client` bounds memory use for large responses (:gh:`119451`) and
+  limits trailer lines and interim responses (:gh:`150743`); :mod:`http.server`
+  gets the same bound for CGI on Windows (:gh:`119452`).
+* :class:`~urllib.request.HTTPPasswordMgr` credentials are scoped by URL
+  scheme (:gh:`155694`, CVE 2026-15806).
+* :mod:`email` refuses to write unsafely folded headers (:gh:`144125`) and
+  folds comments correctly (:gh:`143935`, :gh:`87720`).
+* :class:`http.cookiejar.DefaultCookiePolicy` checks the domain of cookies
+  with a negative ``Version`` (:gh:`160300`).
+
+XML
+---
+
+* The bundled libexpat is updated from 2.7.3 to 2.9.0.
+* :mod:`xml.parsers.expat` seeds expat's hash with 16 bytes of entropy when
+  available (:gh:`149018`) and no longer crashes on deeply nested content
+  models (:gh:`145986`).
+* Quadratic behavior is removed from :mod:`xml.dom.minidom` (:gh:`142145`)
+  and :mod:`xml.etree.ElementTree` path predicates (:gh:`152674`).
+
+Denial-of-service and memory-safety fixes
+-----------------------------------------
+
+* Quadratic or exponential time is removed from :class:`html.parser.HTMLParser`
+  (:gh:`153030`), :mod:`configparser` (:gh:`146333`), :class:`csv.Sniffer`
+  (:gh:`109638`, :gh:`98820`), :func:`unicodedata.normalize` (:gh:`149079`)
+  and :mod:`plistlib` (:gh:`119342`).
+* :mod:`zipfile` bounds decompression per read for bzip2 and LZMA members
+  (:gh:`156002`).
+* Use-after-free and overflow fixes in :mod:`ssl` (:gh:`144833`,
+  :gh:`156293`), :mod:`bz2` and :mod:`lzma` (:gh:`148395`, :gh:`150599`) and
+  :class:`float` / :class:`complex` formatting (:gh:`158446`).
+
+Other
+-----
+
+* ``SourcelessFileLoader`` opens ``.pyc`` files with :func:`io.open_code`
+  (:gh:`145506`, CVE 2026-2297).
+* :mod:`webbrowser` rejects URLs starting with a dash (:gh:`143930`,
+  :gh:`148169`) and runs ``osascript`` by absolute path (:gh:`137586`).
+* :mod:`mimetypes` no longer reads :data:`mimetypes.knownfiles` by default on
+  Windows (:gh:`159428`).
+* :mod:`shutil.unpack_archive` no longer writes outside the destination for
+  some ZIP files on Windows (:gh:`146581`).
+* :mod:`configparser` normalizes line endings in multi-line values
+  (:gh:`143927`).
+* :mod:`stringprep` and the ``idna`` codec stop using Unicode attributes beyond
+  :rfc:`3454` (:gh:`155292`).
+* :func:`ssl.SSLContext.wrap_bio` and :mod:`asyncio` TLS methods validate
+  their arguments like :meth:`~ssl.SSLContext.wrap_socket` (:gh:`156793`).
+* ``ftplib.ftpcp`` no longer trusts the IPv4 address in a PASV reply
+  (:gh:`87451`, the CVE-2021-4189 fix).
+
+Not included: the expat amplification-tuning API from :gh:`90949`.  The
+protection itself (CVE-2025-59375) is built into libexpat 2.7.2 and later
+and is on by default, so 3.9 gets it from the bundled libexpat 2.9.0.
