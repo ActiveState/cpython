@@ -1227,7 +1227,7 @@ class CGIHTTPRequestHandler(SimpleHTTPRequestHandler):
                     delta = min(cursize, nbytes - cursize)
                     try:
                         data += self.rfile.read(delta)
-                    except TimeoutError:
+                    except socket.timeout:
                         break
             else:
                 data = None
