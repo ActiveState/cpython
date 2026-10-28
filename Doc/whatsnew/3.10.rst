@@ -2461,6 +2461,11 @@ ensurepip
   and the bundle in pip 23.0.1 still trusts the compromised eMudhra emSign
   root; pip 26.2.2 ships certifi 2026.10.19, which removes it.
   (:gh:`159894`)
+* The bundled ``setuptools`` is upgraded from 79.0.1 to 84.2.1, fixing
+  CVE 2026-59890 and GHSA-xmj3-9gf7-h52w.  setuptools removed
+  ``pkg_resources`` in 82.0.0, so environments seeded by :mod:`ensurepip` or
+  :mod:`venv` no longer include it; install an older setuptools if an
+  application still imports it.
 
 tarfile
 -------

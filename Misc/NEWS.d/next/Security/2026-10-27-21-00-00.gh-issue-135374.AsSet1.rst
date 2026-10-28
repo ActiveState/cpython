@@ -1,0 +1,4 @@
+Upgrade the bundled setuptools in :mod:`ensurepip` to 84.2.1, which fixes
+CVE-2026-59890 and GHSA-xmj3-9gf7-h52w.  setuptools 82.0.0 removed
+``pkg_resources``, so it is no longer available in environments seeded by
+:mod:`ensurepip` or :mod:`venv`.
