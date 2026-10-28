@@ -225,6 +225,37 @@ class TestShutil(unittest.TestCase):
         self.assertEqual(self.errorState, 3,
                          "Expected call to onerror function did not happen.")
 
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                     "This test can't be run reliably as root (issue #1076467).")
+    @unittest.skipUnless(shutil.rmtree.avoids_symlink_attacks,
+                         'requires the fd based implementation of rmtree()')
+    def test_on_error_kwargs(self):
+        os.mkdir(TESTFN)
+        self.addCleanup(shutil.rmtree, TESTFN)
+
+        child_dir_path = os.path.join(TESTFN, 'b')
+        child_file_path = os.path.join(child_dir_path, 'a')
+        os.mkdir(child_dir_path)
+        support.create_empty_file(child_file_path)
+        old_child_dir_mode = os.stat(child_dir_path).st_mode
+        # Make unwritable.
+        new_mode = stat.S_IREAD|stat.S_IEXEC
+        os.chmod(child_dir_path, new_mode)
+
+        self.addCleanup(os.chmod, child_dir_path, old_child_dir_mode)
+
+        calls = []
+        def onerror(func, path, exc_info, direntry=None, dir_fd=None):
+            calls.append((func, path, exc_info))
+            if func is os.unlink:
+                self.assertEqual(direntry.name, os.path.basename(path))
+                self.assertTrue(os.path.samestat(
+                    os.stat(path), os.stat(direntry.name, dir_fd=dir_fd)))
+
+        shutil.rmtree(TESTFN, onerror=onerror, _onerror_kwargs=True)
+        self.assertIn((os.unlink, child_file_path),
+                      [(func, path) for func, path, exc_info in calls])
+
     def check_args_to_onerror(self, func, arg, exc):
         # test_rmtree_errors deliberately runs rmtree
         # on a directory that is chmod 500, which will fail.
