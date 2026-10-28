@@ -2437,8 +2437,10 @@ This is an ActiveState security release of the 3.10 line, which is past
 its upstream end of life.
 
 It carries the security fixes from upstream Python 3.11.18 (released
-2026-10-25) that apply to 3.10, on top of 3.10.22.  The full list of
-changes is in the changelog; the notable ones are below.
+2026-10-25) that apply to 3.10, on top of 3.10.22, plus three fixes that
+upstream released only for newer lines (or has not released yet): the
+:mod:`imaplib`, :mod:`poplib` and :mod:`http.client` items below.  The full
+list of changes is in the changelog; the notable ones are below.
 
 ssl
 ---
@@ -2479,3 +2481,11 @@ Other security fixes
 * The bundled libexpat is updated to 2.9.0.  (:gh:`158876`)
 * :mod:`email` header refolding now re-quotes text that came from an
   encoded word.  (:gh:`87720`)
+* :mod:`imaplib` rejects NUL, CR and LF in command arguments, which could
+  be used to inject extra IMAP commands.  (:gh:`143921`, CVE 2025-15366.)
+* :mod:`poplib` rejects control characters in commands, which could be used
+  to inject extra POP3 commands.  (:gh:`143923`, CVE 2025-15367.)
+* :mod:`http.client` only accepts a ``Content-Length`` and chunk sizes that
+  match the HTTP grammar (digits, and hex digits for chunk sizes); signs,
+  underscores and ``0x`` prefixes are no longer accepted.
+  (:gh:`150751`, CVE 2026-103995.)
