@@ -1706,8 +1706,11 @@ This is an ActiveState security release of the 3.9 line, which is past
 its upstream end of life.
 
 It carries the security fixes released upstream in Python 3.10.20,
-3.10.21, 3.10.22 and 3.11.18 that apply to 3.9, on top of 3.9.25.  The
-full list of changes is in the changelog; the notable ones are below.
+3.10.21, 3.10.22 and 3.11.18 that apply to 3.9, on top of 3.9.25, plus
+three fixes that upstream released only for newer lines (or has not
+released yet): the :mod:`imaplib`, :mod:`poplib` and :mod:`http.client`
+response-framing items below.  The full list of changes is in the
+changelog; the notable ones are below.
 
 ssl
 ---
@@ -1758,6 +1761,13 @@ http, email, urllib and wsgiref
   folds comments correctly (:gh:`143935`, :gh:`87720`).
 * :class:`http.cookiejar.DefaultCookiePolicy` checks the domain of cookies
   with a negative ``Version`` (:gh:`160300`).
+* :mod:`http.client` only accepts a ``Content-Length`` and chunk sizes that
+  match the HTTP grammar; signs, underscores and ``0x`` prefixes are no
+  longer accepted (:gh:`150751`, CVE 2026-103995).
+* :mod:`imaplib` rejects NUL, CR and LF in command arguments (:gh:`143921`,
+  CVE 2025-15366) and :mod:`poplib` rejects control characters in commands
+  (:gh:`143923`, CVE 2025-15367), which could be used to inject extra
+  commands.
 
 XML
 ---
