@@ -555,10 +555,13 @@ class _Stream:
         """
         if pos - self.pos >= 0:
             blocks, remainder = divmod(pos - self.pos, self.bufsize)
-            for i in xrange(blocks):
+            # Not xrange(): it takes a C long, which is 32 bits on Windows,
+            # and a header can declare a size that makes blocks huge.
+            while blocks > 0:
                 data = self.read(self.bufsize)
                 if not data:
                     break
+                blocks -= 1
             self.read(remainder)
         else:
             raise StreamError("seeking backwards is not allowed")
