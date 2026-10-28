@@ -256,3 +256,19 @@ Removed an unused function from ``Modules/socketmodule.c`` that referenced
 a symbol Python 2.7 does not build, so ``-O0`` and ``--with-pydebug`` builds
 produced a ``_socket`` module (and :mod:`ssl`) that failed to import.
 ``test_ssl`` no longer needs the third-party ``mock`` package.
+
+.. bpo: 0
+.. date: 2026-10-28
+.. nonce: as1916
+.. release date: 2026-10-28
+.. original section: Windows
+.. section: Windows
+
+Use the Winsock values for socket errno constants on Windows
+
+Visual Studio 2010 and later define their own ``ECONNRESET``,
+``EWOULDBLOCK``, ``ETIMEDOUT`` and other socket error numbers in
+``errno.h``, but Windows sockets report the Winsock ``WSAE*`` codes, so
+``errno.EWOULDBLOCK`` (140) never matched a socket error (10035). The
+:mod:`errno` module now uses the Winsock values for these 25 constants, as
+Python 3.5 and later do.
