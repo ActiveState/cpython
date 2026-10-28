@@ -3318,7 +3318,16 @@ else:
                     sock, server_side=True, do_handshake_on_connect=False)
                 return server, weakref.ref(dispatch_ctx)
 
-            s1, s2 = [socket.socket(_sock=s) for s in socket.socketpair()]
+            if hasattr(socket, "socketpair"):
+                s1, s2 = [socket.socket(_sock=s) for s in socket.socketpair()]
+            else:
+                # 2.7 has no socketpair() on Windows; use a loopback TCP pair.
+                with closing(socket.socket()) as listener:
+                    listener.bind((HOST, 0))
+                    listener.listen(1)
+                    s2 = socket.socket()
+                    s2.connect(listener.getsockname())
+                    s1 = listener.accept()[0]
             self.addCleanup(s1.close)
             self.addCleanup(s2.close)
             server, dispatch_ref = make_server(s1)
