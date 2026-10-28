@@ -1,0 +1,5 @@
+Upgrade the bundled setuptools in :mod:`ensurepip` to 82.0.1.post1, the
+ActiveState security release of setuptools 82.0.1 (the last setuptools that
+supports Python 3.9), which fixes CVE-2026-59890.  setuptools 82.0.0 removed
+``pkg_resources``, so it is no longer available in environments seeded by
+:mod:`ensurepip` or :mod:`venv`.
