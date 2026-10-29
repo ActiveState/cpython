@@ -29,7 +29,7 @@ __all__ = ["normcase","isabs","join","splitdrive","split","splitext",
            "ismount", "expanduser","expandvars","normpath","abspath",
            "curdir","pardir","sep","pathsep","defpath","altsep",
            "extsep","devnull","realpath","supports_unicode_filenames","relpath",
-           "samefile", "sameopenfile", "samestat", "commonpath"]
+           "samefile", "sameopenfile", "samestat", "commonpath", "ALLOW_MISSING"]
 
 def _get_bothseps(path):
     if isinstance(path, bytes):
@@ -528,7 +528,10 @@ else:  # use native Windows method on Windows
             return _abspath_fallback(path)
 
 # realpath is a no-op on systems without islink support
-realpath = abspath
+def realpath(path, *, strict=False):
+    # Symbolic links are not resolved on Windows before 3.8, so *strict*
+    # (including ALLOW_MISSING) is accepted for compatibility and ignored.
+    return abspath(path)
 # Win9x family and earlier have no Unicode filename support.
 supports_unicode_filenames = (hasattr(sys, "getwindowsversion") and
                               sys.getwindowsversion()[3] >= 2)
