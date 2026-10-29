@@ -2774,10 +2774,10 @@ ensurepip
   CVE-2025-66471, CVE-2026-21441, CVE-2026-44431, CVE-2026-97687 and
   CVE-2026-97689, and its vendored requests 2.31.0 carries the fixes for
   CVE-2024-47081 and CVE-2026-25645.
-* The bundled ``setuptools`` is upgraded from 47.1.0 to 68.0.0.2, the
+* The bundled ``setuptools`` is upgraded from 47.1.0 to 68.0.0.post3, the
   ActiveState security release of setuptools 68.0.0 (the last setuptools that
-  supports Python 3.7), fixing CVE-2022-40897, CVE-2024-6345 and
-  CVE-2025-47273.  setuptools 68 replaces :mod:`distutils` with its own copy
+  supports Python 3.7), fixing CVE-2022-40897, CVE-2024-6345, CVE-2025-47273,
+  CVE-2026-59890 and GHSA-xmj3-9gf7-h52w.  setuptools 68 replaces :mod:`distutils` with its own copy
   when it is imported; a process that imports ``pip`` before ``setuptools``
   can fail with an ``AssertionError`` about ``distutils/core.py``.  Import
   ``setuptools`` first, or set ``SETUPTOOLS_USE_DISTUTILS=stdlib``.

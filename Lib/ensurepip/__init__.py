@@ -8,7 +8,7 @@ import tempfile
 
 __all__ = ["version", "bootstrap"]
 _PACKAGE_NAMES = ('setuptools', 'pip')
-_SETUPTOOLS_VERSION = "68.0.0.2"
+_SETUPTOOLS_VERSION = "68.0.0.post3"
 _PIP_VERSION = "24.0.post4"
 _PROJECTS = [
     ("setuptools", _SETUPTOOLS_VERSION, "py3"),
