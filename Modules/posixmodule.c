@@ -3913,12 +3913,13 @@ If dir_fd is not None, it should be a file descriptor open to a directory,
 dir_fd may not be implemented on your platform.
   If it is unavailable, using it will raise a NotImplementedError.
 
-The mode argument is ignored on Windows.
+On Windows, a mode of 0o700 restricts access to the new directory to the
+current user and administrators; other values of mode are ignored.
 [clinic start generated code]*/
 
 static PyObject *
 os_mkdir_impl(PyObject *module, path_t *path, int mode, int dir_fd)
-/*[clinic end generated code: output=a70446903abe821f input=e965f68377e9b1ce]*/
+/*[clinic end generated code: output=a70446903abe821f input=a50163eb81c6870b]*/
 {
     int result;
 #ifdef MS_WINDOWS

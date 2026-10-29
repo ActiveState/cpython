@@ -1194,7 +1194,7 @@ XMLParser Objects
       using :func:`hasattr` if used in code running across a variety of Python
       versions.
 
-      .. versionadded:: 3.9.19
+      .. versionadded:: 3.7.17.8
 
 
    :meth:`XMLParser.feed` calls *target*\'s ``start(tag, attrs_dict)`` method
@@ -1271,7 +1271,7 @@ XMLPullParser Objects
       using :func:`hasattr` if used in code running across a variety of Python
       versions.
 
-      .. versionadded:: 3.9.19
+      .. versionadded:: 3.7.17.8
 
    .. method:: close()
 

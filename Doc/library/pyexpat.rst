@@ -222,14 +222,14 @@ XMLParser Objects
    :meth:`SetReparseDeferralEnabled` using :func:`hasattr` if used in code
    running across a variety of Python versions.
 
-   .. versionadded:: 3.9.19
+   .. versionadded:: 3.7.17.8
 
 .. method:: xmlparser.GetReparseDeferralEnabled()
 
    Returns whether reparse deferral is currently enabled for the given
    Expat parser instance.
 
-   .. versionadded:: 3.9.19
+   .. versionadded:: 3.7.17.8
 
 
 :class:`xmlparser` objects have the following attributes:

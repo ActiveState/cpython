@@ -1849,7 +1849,7 @@ features:
    .. versionchanged:: 3.6
       Accepts a :term:`path-like object`.
 
-   .. versionchanged:: 3.9.20
+   .. versionchanged:: 3.7.17.8
       Windows now handles a *mode* of ``0o700``.
 
 

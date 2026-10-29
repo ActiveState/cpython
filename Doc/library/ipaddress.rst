@@ -127,10 +127,10 @@ write code that handles both IP versions correctly.  Address objects are
       IPv4 address strings are now parsed as strict as glibc
       :func:`~socket.inet_pton`.
 
-   .. versionchanged:: 3.9.5
+   .. versionchanged:: 3.7.17.8
 
-      The above change was also included in Python 3.9 starting with
-      version 3.9.5.
+      The above change is also included in ActiveState Python 3.7
+      starting with version 3.7.17.8.
 
    .. attribute:: version
 

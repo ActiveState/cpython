@@ -237,7 +237,7 @@ The :mod:`tarfile` module defines the following exceptions:
    The exception that was raised to reject the replacement member is available
    as :attr:`!BaseException.__context__`.
 
-   .. versionadded:: next
+   .. versionadded:: 3.7.17.8
 
 
 The following constants are available at the module level:
@@ -943,7 +943,7 @@ reused in custom filters:
 
   Return the modified ``TarInfo`` member.
 
-  .. versionchanged:: next
+  .. versionchanged:: 3.7.17.8
 
      Filenames containing ``..`` components are now normalized.
 
@@ -986,7 +986,7 @@ reused in custom filters:
 
   Return the modified ``TarInfo`` member.
 
-  .. versionchanged:: next
+  .. versionchanged:: 3.7.17.8
 
      Link targets are now normalized.
 
