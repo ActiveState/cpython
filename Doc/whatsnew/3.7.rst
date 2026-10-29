@@ -2761,7 +2761,7 @@ ssl
 ensurepip
 ---------
 
-* The bundled ``pip`` is upgraded from 23.0.1 to 24.0.post3, the ActiveState
+* The bundled ``pip`` is upgraded from 23.0.1 to 24.0.post4, the ActiveState
   security release of pip 24.0 (the last pip that supports Python 3.7).  pip
   loads its own vendored ``certifi`` CA bundle in addition to the system trust
   store; the bundle in 24.0.post3 (certifi 2026.10.23) drops the emSign ECC
@@ -2769,7 +2769,11 @@ ensurepip
   compromised eMudhra/emSign CA, leaving emSign Root CA - G1 as the only
   emSign root.  The release also fixes CVE-2023-5752, CVE-2025-8869,
   CVE-2026-1703, CVE-2026-3219, CVE-2026-6357, CVE-2026-8643 and
-  CVE-2026-13346.
+  CVE-2026-13346.  Its vendored urllib3 (ActiveState 1.26.20.post4) fixes
+  CVE-2023-45803, CVE-2024-37891, CVE-2025-50181, CVE-2025-66418,
+  CVE-2025-66471, CVE-2026-21441, CVE-2026-44431, CVE-2026-97687 and
+  CVE-2026-97689, and its vendored requests 2.31.0 carries the fixes for
+  CVE-2024-47081 and CVE-2026-25645.
 * The bundled ``setuptools`` is upgraded from 47.1.0 to 68.0.0.2, the
   ActiveState security release of setuptools 68.0.0 (the last setuptools that
   supports Python 3.7), fixing CVE-2022-40897, CVE-2024-6345 and
