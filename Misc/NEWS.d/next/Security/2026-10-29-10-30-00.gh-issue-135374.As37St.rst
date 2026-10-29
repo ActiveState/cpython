@@ -1,0 +1,4 @@
+Upgrade the bundled setuptools in :mod:`ensurepip` from 47.1.0 to 68.0.0.2,
+the ActiveState security release of setuptools 68.0.0 (the last setuptools
+that supports Python 3.7).  It fixes CVE-2022-40897, CVE-2024-6345 and
+CVE-2025-47273.
