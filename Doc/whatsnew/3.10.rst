@@ -2524,3 +2524,31 @@ tempfile
   a :exc:`PermissionError` is no longer masked by :exc:`NotADirectoryError`
   (:issue:`43153`), and cleanup no longer recurses endlessly when the
   temporary directory itself cannot be removed (:gh:`79325`).
+
+
+Notable changes in 3.10.22.3
+============================
+
+This is an ActiveState release of the 3.10 line, on top of 3.10.22.2.
+
+tarfile
+-------
+
+* Opening an archive no longer pre-allocates the size a GNU long name/link
+  or pax extended header claims.  The header is read in bounded chunks, so a
+  small crafted archive cannot force a multi-gigabyte allocation before any
+  extraction filter runs.  (:gh:`151497`.)
+
+Build Changes
+-------------
+
+* :mod:`ctypes` builds on Windows against libffi 3.5 and later.  Those
+  versions always declare libffi's ``ffi_type_*`` objects as DLL imports
+  under MSVC, which broke the static initializers in
+  :file:`Modules/_ctypes/cfield.c`.  The format table is now filled in at
+  run time, and the Windows project no longer defines ``FFI_BUILDING``.
+  (Backport of :issue:`45898` and :gh:`92356`.)
+* :file:`Modules/expat/pyexpatns.h` now also renames
+  ``XML_SetHashSalt16Bytes``, which Expat 2.9.0 added, so every function of
+  the bundled Expat carries the ``PyExpat_`` prefix and cannot clash with
+  another copy of Expat loaded in the same process.
