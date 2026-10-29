@@ -3,4 +3,4 @@ When working around file system permission errors, files are now removed
 relative to open directory file descriptors instead of resolving their path
 again, so that replacing a directory of the tree with a symbolic link can no
 longer make the cleanup delete files outside of the temporary directory.
-This addresses :cve:`2026-12345`.
+This addresses CVE-2026-12345.

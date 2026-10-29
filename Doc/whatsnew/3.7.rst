@@ -2764,7 +2764,7 @@ ensurepip
 * The bundled ``pip`` is upgraded from 23.0.1 to 24.0.post4, the ActiveState
   security release of pip 24.0 (the last pip that supports Python 3.7).  pip
   loads its own vendored ``certifi`` CA bundle in addition to the system trust
-  store; the bundle in 24.0.post3 (certifi 2026.10.23) drops the emSign ECC
+  store; its bundle (certifi 2026.10.23) drops the emSign ECC
   Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 roots of the
   compromised eMudhra/emSign CA, leaving emSign Root CA - G1 as the only
   emSign root.  The release also fixes CVE-2023-5752, CVE-2025-8869,
@@ -2861,6 +2861,9 @@ ipaddress
   :exc:`ValueError`.
 * IPv6 address parsing is bounded (:gh:`128840`), and the properties of
   IPv4-mapped IPv6 addresses match the IPv4 address (:gh:`122792`).
+* :class:`~ipaddress.IPv4Network` and :class:`~ipaddress.IPv6Network` hash
+  the network address and netmask as a pair, so overlapping networks no
+  longer collide (:gh:`134062`).
 
 XML and HTML
 ------------
@@ -2875,7 +2878,9 @@ XML and HTML
 * :class:`html.parser.HTMLParser` follows HTML5 for comments, tags, CDATA
   sections and the ``script``, ``style``, ``textarea`` and ``title`` elements,
   and loses its quadratic cases (:gh:`135661`, :gh:`102555`, :gh:`118350`,
-  :gh:`135462`, :gh:`153030`).
+  :gh:`135462`, :gh:`153030`).  The ``xmp``, ``iframe``, ``noembed``,
+  ``noframes`` and ``plaintext`` elements, and ``noscript`` when the new
+  *scripting* argument is true, are parsed as raw text too (:gh:`137836`).
 * Quadratic behavior is removed from :mod:`xml.dom.minidom` (:gh:`142145`)
   and :mod:`xml.etree.ElementTree` path predicates (:gh:`152674`).
 
@@ -2894,15 +2899,17 @@ Denial-of-service and memory-safety fixes
 * Use-after-free and out-of-bounds fixes in the ``unicode-escape`` decoder
   (:gh:`133767`, CVE 2025-4516), :mod:`bz2` and :mod:`lzma` (:gh:`148395`,
   :gh:`150599`), the ``iso2022_jp_3`` and ``iso2022_jp_2004`` codecs
-  (:gh:`101180`) and :class:`float` / :class:`complex` formatting
-  (:gh:`158446`).
+  (:gh:`101180`), :class:`float` / :class:`complex` formatting
+  (:gh:`158446`), and :class:`list` comparison and slice assignment when an
+  operand changes the list (:gh:`120298`, :gh:`120384`).
 
 Other
 -----
 
 * :mod:`site` skips hidden ``.pth`` files (:gh:`113659`).
-* :mod:`multiprocessing` no longer uses Linux abstract sockets by default
-  (:gh:`97514`, CVE 2022-42919).
+* CVE 2022-42919 (:gh:`97514`, Linux abstract sockets in
+  :mod:`multiprocessing`) does not affect 3.7: its ``AF_UNIX`` listeners have
+  always used filesystem paths.  The changelog entry records that.
 * :mod:`webbrowser` rejects URLs starting with a dash (:gh:`143930`,
   :gh:`148169`) and runs ``osascript`` by absolute path (:gh:`137586`).
 * :mod:`mimetypes` no longer reads :data:`mimetypes.knownfiles` by default on
