@@ -1847,3 +1847,20 @@ tempfile
   a :exc:`PermissionError` is no longer masked by :exc:`NotADirectoryError`
   (:issue:`43153`), and cleanup no longer recurses endlessly when the
   temporary directory itself cannot be removed (:gh:`79325`).
+
+
+Notable changes in 3.9.25.3
+===========================
+
+This is an ActiveState release of the 3.9 line, on top of 3.9.25.2.
+
+Build Changes
+-------------
+
+* Windows release builds now link with ``/OPT:REF,NOICF``.  With identical
+  COMDAT folding enabled, newer Visual Studio linkers merge two internal slot
+  wrappers whose code is identical, and the type machinery relies on their
+  addresses being different.  On such builds, ``+`` with an instance of a
+  subclass of a built-in type (for example an :class:`int` or
+  :class:`datetime.datetime` subclass) returned :data:`NotImplemented`
+  instead of raising :exc:`TypeError`.  (Backport of :issue:`42825`.)
