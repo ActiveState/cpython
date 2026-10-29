@@ -1864,3 +1864,33 @@ Build Changes
   subclass of a built-in type (for example an :class:`int` or
   :class:`datetime.datetime` subclass) returned :data:`NotImplemented`
   instead of raising :exc:`TypeError`.  (Backport of :issue:`42825`.)
+
+
+Notable changes in 3.9.25.4
+===========================
+
+This is an ActiveState release of the 3.9 line, on top of 3.9.25.3.
+
+tarfile
+-------
+
+* Opening an archive no longer pre-allocates the size a GNU long name/link
+  or pax extended header claims.  The header is read in bounded chunks, so a
+  small crafted archive cannot force a multi-gigabyte allocation before any
+  extraction filter runs.  (:gh:`151497`.)
+
+Build Changes
+-------------
+
+* :mod:`ctypes` builds on Windows against libffi 3.5 and later.  Those
+  versions always declare libffi's ``ffi_type_*`` objects as DLL imports
+  under MSVC, which broke the static initializers in
+  :file:`Modules/_ctypes/cfield.c`.  The format table is now filled in at
+  run time, and the Windows project no longer defines ``FFI_BUILDING``.
+  (Backport of :issue:`45898` and :gh:`92356`.)
+* :file:`Modules/expat/pyexpatns.h` now also renames the three functions
+  Expat 2.9.0 added (``XML_SetHashSalt16Bytes``,
+  ``XML_SetAllocTrackerActivationThreshold`` and
+  ``XML_SetAllocTrackerMaximumAmplification``), so every function of the
+  bundled Expat carries the ``PyExpat_`` prefix and cannot clash with
+  another copy of Expat loaded in the same process.
