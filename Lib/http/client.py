@@ -112,6 +112,18 @@ MAXAMOUNT = 1048576
 _MAXLINE = 65536
 _MAXHEADERS = 100
 
+# maximal number of interim (1xx) responses tolerated before the final
+# response.  Real servers send at most a few; without a bound, a server
+# streaming "100 Continue" responses would hang getresponse() forever.
+# A socket timeout cannot detect that as data keeps arriving within every
+# timeout window.
+_MAXINTERIMRESPONSES = 100
+
+# Data larger than this will be read in chunks, to prevent extreme
+# overallocation.
+_MIN_READ_BUF_SIZE = 1 << 20
+
+
 # Header name/value ABNF (http://tools.ietf.org/html/rfc7230#section-3.2)
 #
 # VCHAR          = %x21-7E
@@ -153,6 +165,11 @@ _contains_disallowed_url_pchar_re = re.compile('[\x00-\x20\x7f]')
 # These characters are not allowed within HTTP method names
 # to prevent http header injection.
 _contains_disallowed_method_pchar_re = re.compile('[\x00-\x1f]')
+
+# RFC 9112: Content-Length = 1*DIGIT and chunk-size = 1*HEXDIG.
+# int() is more permissive, so we match against the grammar before calling it.
+_is_legal_content_length = re.compile(r'[0-9]+').fullmatch
+_is_legal_chunk_size = re.compile(rb'[0-9a-fA-F]+').fullmatch
 
 # We always set the Content-Length header for these methods because some
 # servers will otherwise respond with a 411
@@ -315,7 +332,7 @@ class HTTPResponse(io.BufferedIOBase):
             return
 
         # read until we get a non-100 response
-        while True:
+        for _ in range(_MAXINTERIMRESPONSES):
             version, status, reason = self._read_status()
             if status != CONTINUE:
                 break
@@ -324,6 +341,9 @@ class HTTPResponse(io.BufferedIOBase):
             if self.debuglevel > 0:
                 print("headers:", skipped_headers)
             del skipped_headers
+        else:
+            raise HTTPException(
+                f"got more than {_MAXINTERIMRESPONSES} interim responses")
 
         self.code = self.status = status
         self.reason = reason.strip()
@@ -359,14 +379,12 @@ class HTTPResponse(io.BufferedIOBase):
 
          # are we using the chunked-style of transfer encoding?
         tr_enc = self.headers.get("transfer-encoding")
-        if length and not self.chunked:
-            try:
-                self.length = int(length)
-            except ValueError:
-                self.length = None
-            else:
-                if self.length < 0:  # ignore nonsensical negative lengths
-                    self.length = None
+        if length is not None:
+            # RFC 9112, section 5.1: optional whitespace (SP / HTAB) around
+            # the field value is not part of the value.
+            length = length.strip(' \t')
+        if length and not self.chunked and _is_legal_content_length(length):
+            self.length = int(length)
         else:
             self.length = None
 
@@ -525,7 +543,10 @@ class HTTPResponse(io.BufferedIOBase):
         i = line.find(b";")
         if i >= 0:
             line = line[:i] # strip chunk-extensions
+        line = line.rstrip()
         try:
+            if not _is_legal_chunk_size(line):
+                raise ValueError("invalid chunk size")
             return int(line, 16)
         except ValueError:
             # close the connection as protocol synchronisation is
@@ -536,6 +557,7 @@ class HTTPResponse(io.BufferedIOBase):
     def _read_and_discard_trailer(self):
         # read and discard trailer up to the CRLF terminator
         ### note: we shouldn't have any trailers!
+        trailers_read = 0
         while True:
             line = self.fp.readline(_MAXLINE + 1)
             if len(line) > _MAXLINE:
@@ -546,6 +568,14 @@ class HTTPResponse(io.BufferedIOBase):
                 break
             if line in (b'\r\n', b'\n', b''):
                 break
+            # Bound the trailer count just as response headers are bounded.
+            # A server streaming trailer lines forever would otherwise hang
+            # the client; a socket timeout cannot detect that as data keeps
+            # arriving within every timeout window.
+            trailers_read += 1
+            if trailers_read > _MAXHEADERS:
+                raise HTTPException(
+                    f"got more than {_MAXHEADERS} trailers")
 
     def _get_chunk_left(self):
         # return self.chunk_left, reading a new chunk if necessary.
@@ -623,14 +653,25 @@ class HTTPResponse(io.BufferedIOBase):
         reading. If the bytes are truly not available (due to EOF), then the
         IncompleteRead exception can be used to detect the problem.
         """
-        s = []
-        while amt > 0:
-            chunk = self.fp.read(min(amt, MAXAMOUNT))
-            if not chunk:
-                raise IncompleteRead(b''.join(s), amt)
-            s.append(chunk)
-            amt -= len(chunk)
-        return b"".join(s)
+        cursize = min(amt, _MIN_READ_BUF_SIZE)
+        data = self.fp.read(cursize)
+        if len(data) >= amt:
+            return data
+        if len(data) < cursize:
+            raise IncompleteRead(data, amt - len(data))
+
+        data = io.BytesIO(data)
+        data.seek(0, 2)
+        while True:
+            # This is a geometric increase in read size (never more than
+            # doubling out the current length of data per loop iteration).
+            delta = min(cursize, amt - cursize)
+            data.write(self.fp.read(delta))
+            if data.tell() >= amt:
+                return data.getvalue()
+            cursize += delta
+            if data.tell() < cursize:
+                raise IncompleteRead(data.getvalue(), amt - data.tell())
 
     def _safe_readinto(self, b):
         """Same as _safe_read, but for reading into a buffer."""
@@ -912,15 +953,26 @@ class HTTPConnection:
         self.debuglevel = level
 
     def _tunnel(self):
-        connect_str = "CONNECT %s:%d HTTP/1.0\r\n" % (self._tunnel_host,
-            self._tunnel_port)
-        connect_bytes = connect_str.encode("ascii")
-        self.send(connect_bytes)
+        if _contains_disallowed_url_pchar_re.search(self._tunnel_host):
+            raise ValueError('Tunnel host can\'t contain control characters %r'
+                             % (self._tunnel_host,))
+        connect = b"CONNECT %s:%d HTTP/1.0\r\n" % (
+            self._tunnel_host.encode("ascii"), self._tunnel_port)
+        headers = [connect]
         for header, value in self._tunnel_headers.items():
-            header_str = "%s: %s\r\n" % (header, value)
-            header_bytes = header_str.encode("latin-1")
-            self.send(header_bytes)
-        self.send(b'\r\n')
+            header_bytes = header.encode("latin-1")
+            value_bytes = value.encode("latin-1")
+            if not _is_legal_header_name(header_bytes):
+                raise ValueError('Invalid header name %r' % (header_bytes,))
+            if _is_illegal_header_value(value_bytes):
+                raise ValueError('Invalid header value %r' % (value_bytes,))
+            headers.append(b"%s: %s\r\n" % (header_bytes, value_bytes))
+        headers.append(b"\r\n")
+        # Making a single send() call instead of one per line encourages
+        # the host OS to use a more optimal packet size instead of
+        # potentially emitting a series of small packets.
+        self.send(b"".join(headers))
+        del headers
 
         response = self.response_class(self.sock, method=self._method)
         (version, code, message) = response._read_status()

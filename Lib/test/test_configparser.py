@@ -44,7 +44,7 @@ class CfgParserTestCaseClass:
     default_section = configparser.DEFAULTSECT
     interpolation = configparser._UNSET
 
-    def newconfig(self, defaults=None):
+    def newconfig(self, defaults=None, **kwargs):
         arguments = dict(
             defaults=defaults,
             allow_no_value=self.allow_no_value,
@@ -57,6 +57,7 @@ class CfgParserTestCaseClass:
             default_section=self.default_section,
             interpolation=self.interpolation,
         )
+        arguments.update(kwargs)
         instance = self.config_class(**arguments)
         return instance
 
@@ -355,6 +356,32 @@ boolean {0[0]} NO
                 the larch {0[1]} 1
             """.format(self.delimiters)))
 
+    @support.subTests('data', [
+        'foo bar=baz',
+        'foo   bar=baz',
+        'foo=bar=baz',
+        'foo = bar=baz',
+        'foo\t \t=\t \tbar=baz',
+    ])
+    def test_space_delimiter(self, data):
+        # gh-156353: Space should be accepted as a delimiter
+        cf = self.newconfig(delimiters=(' ', '='))
+        cf.read_string(f"[all]\n{data}")
+        self.assertEqual(cf.options('all'), ['foo'])
+        self.assertEqual(cf.get('all', 'foo'), 'bar=baz')
+
+    @support.subTests('delimiter', ' =:;#x\t\0\N{RS}\N{CEDILLA}\N{CAT}')
+    @support.subTests('space_before', ['', ' ', '\t', ' \t'])
+    @support.subTests('space_after', ['', ' ', '\t', ' \t'])
+    def test_any_delimiter(self, delimiter, space_before, space_after):
+        cf = self.newconfig(
+            delimiters=(delimiter,),
+            inline_comment_prefixes=None,
+        )
+        cf.read_string(f"[all]\nfoo{space_before}{delimiter}{space_after}bar=baz")
+        self.assertEqual(cf.options('all'), ['foo'])
+        self.assertEqual(cf.get('all', 'foo'), 'bar=baz')
+
     def test_basic_from_dict(self):
         config = {
             "Foo Bar": {
@@ -519,6 +546,17 @@ boolean {0[0]} NO
         self.assertEqual(
             cf.get(self.default_section, "Foo"), "Bar",
             "could not locate option, expecting case-insensitive defaults")
+
+    def test_crlf_normalization(self):
+        cf = self.newconfig({"key1": "a\nb","key2": "a\rb", "key3": "a\r\nb", "key4": "a\r\nb"})
+        buf = io.StringIO()
+        cf.write(buf)
+        cf_str = buf.getvalue()
+        self.assertNotIn("\r", cf_str)
+        self.assertNotIn("\r\n", cf_str)
+        self.assertEqual(cf_str.count("\n"), 10)
+        self.assertEqual(cf_str.count("\n\t"), 4)
+        self.assertTrue(cf_str.endswith("\n\n"))
 
     def test_parse_errors(self):
         cf = self.newconfig()
@@ -1933,8 +1971,8 @@ class ConvertersTestCase(BasicTestCase, unittest.TestCase):
 
     config_class = configparser.ConfigParser
 
-    def newconfig(self, defaults=None):
-        instance = super().newconfig(defaults=defaults)
+    def newconfig(self, defaults=None, **kwargs):
+        instance = super().newconfig(defaults=defaults, **kwargs)
         instance.converters['list'] = lambda v: [e.strip() for e in v.split()
                                                  if e.strip()]
         return instance
@@ -2119,6 +2157,26 @@ class BlatantOverrideConvertersTestCase(unittest.TestCase):
             self.assertEqual(cfg['one'].getlen('one'), 5)
         with self.assertRaises(AttributeError):
             self.assertEqual(cfg['two'].getlen('one'), 5)
+
+
+class ReDoSTestCase(unittest.TestCase):
+    """Regression tests for quadratic regex backtracking (gh-146333)."""
+
+    def test_option_regex_does_not_backtrack(self):
+        # A line with many spaces between non-delimiter characters
+        # should be parsed in linear time, not quadratic.
+        parser = configparser.RawConfigParser()
+        content = "[section]\n" + "x" + " " * 40000 + "y" + "\n"
+        # This should complete almost instantly. Before the fix,
+        # it would take over a minute due to catastrophic backtracking.
+        with self.assertRaises(configparser.ParsingError):
+            parser.read_string(content)
+
+    def test_option_regex_no_value_does_not_backtrack(self):
+        parser = configparser.RawConfigParser(allow_no_value=True)
+        content = "[section]\n" + "x" + " " * 40000 + "y" + "\n"
+        parser.read_string(content)
+        self.assertTrue(parser.has_option("section", "x" + " " * 40000 + "y"))
 
 
 class MiscTestCase(unittest.TestCase):

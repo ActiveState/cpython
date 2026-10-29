@@ -5,11 +5,14 @@ import io
 import os
 import pathlib
 import signal
+import stat
 import sys
 import re
 import warnings
 import contextlib
 import weakref
+import subprocess
+import shutil
 from unittest import mock
 
 import unittest
@@ -768,6 +771,33 @@ class TestMkdtemp(TestBadTempdir, BaseTestCase):
         finally:
             os.rmdir(dir)
 
+    @unittest.skipUnless(os.name == "nt", "Only on Windows.")
+    def test_mode_win32(self):
+        # Use icacls.exe to extract the users with some level of access
+        # Main thing we are testing is that the BUILTIN\Users group has
+        # no access. The exact ACL is going to vary based on which user
+        # is running the test.
+        dir = self.do_create()
+        try:
+            out = subprocess.check_output(["icacls.exe", dir], encoding="oem").casefold()
+        finally:
+            os.rmdir(dir)
+
+        dir = dir.casefold()
+        users = set()
+        found_user = False
+        for line in out.strip().splitlines():
+            acl = None
+            # First line of result includes our directory
+            if line.startswith(dir):
+                acl = line[len(dir):].strip()
+            elif line and line[:1].isspace():
+                acl = line.strip()
+            if acl:
+                users.add(acl.partition(":")[0])
+
+        self.assertNotIn(r"BUILTIN\Users".casefold(), users)
+
     def test_collision_with_existing_file(self):
         # mkdtemp tries another name when a file with
         # the chosen name already exists
@@ -1379,7 +1409,29 @@ class TestTemporaryDirectory(BaseTestCase):
                 temp_path.exists(),
                 f"TemporaryDirectory {temp_path!s} exists after cleanup")
 
-    @os_helper.skip_unless_symlink
+    @unittest.skipUnless(os.name == "nt", "Only on Windows.")
+    def test_explicit_cleanup_correct_error(self):
+        with tempfile.TemporaryDirectory() as working_dir:
+            temp_dir = self.do_create(dir=working_dir)
+            with open(os.path.join(temp_dir.name, "example.txt"), 'wb'):
+                # Previously raised NotADirectoryError on some OSes
+                # (e.g. Windows). See bpo-43153.
+                with self.assertRaises(PermissionError):
+                    temp_dir.cleanup()
+
+    @unittest.skipUnless(os.name == "nt", "Only on Windows.")
+    def test_cleanup_with_used_directory(self):
+        with tempfile.TemporaryDirectory() as working_dir:
+            temp_dir = self.do_create(dir=working_dir)
+            subdir = os.path.join(temp_dir.name, "subdir")
+            os.mkdir(subdir)
+            with support.change_cwd(subdir):
+                # Previously raised RecursionError on some OSes
+                # (e.g. Windows). See bpo-35144.
+                with self.assertRaises(PermissionError):
+                    temp_dir.cleanup()
+
+    @support.skip_unless_symlink
     def test_cleanup_with_symlink_to_a_directory(self):
         # cleanup() should not follow symlinks to directories (issue #12464)
         d1 = self.do_create()
@@ -1399,6 +1451,180 @@ class TestTemporaryDirectory(BaseTestCase):
                          "Contents of the directory pointed to by a symlink "
                          "were deleted")
         d2.cleanup()
+
+    @support.skip_unless_symlink
+    def test_cleanup_with_symlink_modes(self):
+        # cleanup() should not follow symlinks when fixing mode bits (#91133)
+        with self.do_create(recurse=0) as d2:
+            file1 = os.path.join(d2, 'file1')
+            open(file1, 'wb').close()
+            dir1 = os.path.join(d2, 'dir1')
+            os.mkdir(dir1)
+            for mode in range(8):
+                mode <<= 6
+                with self.subTest(mode=format(mode, '03o')):
+                    def test(target, target_is_directory):
+                        d1 = self.do_create(recurse=0)
+                        symlink = os.path.join(d1.name, 'symlink')
+                        os.symlink(target, symlink,
+                                target_is_directory=target_is_directory)
+                        try:
+                            os.chmod(symlink, mode, follow_symlinks=False)
+                        except NotImplementedError:
+                            pass
+                        try:
+                            os.chmod(symlink, mode)
+                        except FileNotFoundError:
+                            pass
+                        os.chmod(d1.name, mode)
+                        d1.cleanup()
+                        self.assertFalse(os.path.exists(d1.name))
+
+                    with self.subTest('nonexisting file'):
+                        test('nonexisting', target_is_directory=False)
+                    with self.subTest('nonexisting dir'):
+                        test('nonexisting', target_is_directory=True)
+
+                    with self.subTest('existing file'):
+                        os.chmod(file1, mode)
+                        old_mode = os.stat(file1).st_mode
+                        test(file1, target_is_directory=False)
+                        new_mode = os.stat(file1).st_mode
+                        self.assertEqual(new_mode, old_mode,
+                                         '%03o != %03o' % (new_mode, old_mode))
+
+                    with self.subTest('existing dir'):
+                        os.chmod(dir1, mode)
+                        old_mode = os.stat(dir1).st_mode
+                        test(dir1, target_is_directory=True)
+                        new_mode = os.stat(dir1).st_mode
+                        self.assertEqual(new_mode, old_mode,
+                                         '%03o != %03o' % (new_mode, old_mode))
+
+    @unittest.skipUnless(hasattr(os, 'chflags'), 'requires os.chflags')
+    @support.skip_unless_symlink
+    def test_cleanup_with_symlink_flags(self):
+        # cleanup() should not follow symlinks when fixing flags (#91133)
+        flags = stat.UF_IMMUTABLE | stat.UF_NOUNLINK
+        self.check_flags(flags)
+
+        with self.do_create(recurse=0) as d2:
+            file1 = os.path.join(d2, 'file1')
+            open(file1, 'wb').close()
+            dir1 = os.path.join(d2, 'dir1')
+            os.mkdir(dir1)
+            def test(target, target_is_directory):
+                d1 = self.do_create(recurse=0)
+                symlink = os.path.join(d1.name, 'symlink')
+                os.symlink(target, symlink,
+                           target_is_directory=target_is_directory)
+                try:
+                    os.chflags(symlink, flags, follow_symlinks=False)
+                except NotImplementedError:
+                    pass
+                try:
+                    os.chflags(symlink, flags)
+                except FileNotFoundError:
+                    pass
+                os.chflags(d1.name, flags)
+                d1.cleanup()
+                self.assertFalse(os.path.exists(d1.name))
+
+            with self.subTest('nonexisting file'):
+                test('nonexisting', target_is_directory=False)
+            with self.subTest('nonexisting dir'):
+                test('nonexisting', target_is_directory=True)
+
+            with self.subTest('existing file'):
+                os.chflags(file1, flags)
+                old_flags = os.stat(file1).st_flags
+                test(file1, target_is_directory=False)
+                new_flags = os.stat(file1).st_flags
+                self.assertEqual(new_flags, old_flags)
+
+            with self.subTest('existing dir'):
+                os.chflags(dir1, flags)
+                old_flags = os.stat(dir1).st_flags
+                test(dir1, target_is_directory=True)
+                new_flags = os.stat(dir1).st_flags
+                self.assertEqual(new_flags, old_flags)
+
+    @support.skip_unless_symlink
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                     'test needs non-root account')
+    @unittest.skipUnless(shutil.rmtree.avoids_symlink_attacks,
+                         'requires the fd based implementation of rmtree()')
+    def test_cleanup_with_symlink_race(self):
+        # cleanup() should not operate on files outside of the temporary
+        # directory when a directory is replaced with a symlink while it
+        # recovers from a PermissionError (CVE-2026-12345).
+        with self.do_create(recurse=0) as target:
+            target_file = os.path.join(target, 'file1')
+            open(target_file, 'wb').close()
+            target_mode = os.stat(target_file).st_mode
+
+            d1 = self.do_create(recurse=0)
+            dir1 = os.path.join(d1.name, 'dir1')
+            os.mkdir(dir1)
+            open(os.path.join(dir1, 'file1'), 'wb').close()
+            # Removing contents of dir1 fails with a PermissionError, and
+            # dir1 is replaced with a symlink to target at the very moment
+            # cleanup() starts to recover from that error.
+            os.chmod(dir1, 0o500)
+            unlink = os.unlink
+            def hook(path, *, dir_fd=None):
+                try:
+                    return unlink(path, dir_fd=dir_fd)
+                except PermissionError:
+                    if not os.path.islink(dir1):
+                        os.chmod(dir1, 0o700)
+                        os.rename(dir1, dir1 + '_moved')
+                        os.symlink(target, dir1)
+                    raise
+            try:
+                with mock.patch('os.unlink', hook):
+                    with contextlib.suppress(OSError):
+                        d1.cleanup()
+            finally:
+                if os.path.islink(dir1):
+                    os.unlink(dir1)
+                    os.rename(dir1 + '_moved', dir1)
+                os.chmod(dir1, 0o700)
+                d1.cleanup()
+
+            self.assertTrue(os.path.exists(target_file))
+            self.assertEqual(os.stat(target_file).st_mode, target_mode)
+
+    @support.subTests('ignore_errors', (True, False))
+    def test_parent_mode_preserved(self, ignore_errors):
+        # Test that cleanup does not touch the parent directory,
+        # even if that prevents removal.
+        for mode in range(8):
+            mode <<= 6
+            with self.subTest(mode=format(mode, '03o')):
+                outer = self.do_create()
+                with outer:
+                    d = self.do_create(dir=outer.name, dirs=2, files=2,
+                                       ignore_cleanup_errors=ignore_errors)
+                    with d:
+                        os.chmod(outer.name, mode)
+                        orig_mode = os.stat(outer.name).st_mode
+                        try:
+                            d.cleanup()
+                        except PermissionError:
+                            if ignore_errors:
+                                raise
+                        self.assertEqual(os.stat(outer.name).st_mode, orig_mode)
+                        outer.cleanup()
+                self.assertFalse(os.path.exists(outer.name))
+
+    @unittest.skipUnless(sys.platform.startswith(('linux', 'darwin', 'freebsd')),
+                         'regression test for supported platforms')
+    def test_cleanup_safe(self):
+        """Verify that cleanup uses the safer code path"""
+        # This is a regression test. Feel free to add exceptions for new
+        # platforms, but don't forget to update the docs.
+        self.assertTrue(tempfile._rmtree_use_dir_fd)
 
     @support.cpython_only
     def test_del_on_collection(self):
@@ -1555,6 +1781,51 @@ class TestTemporaryDirectory(BaseTestCase):
             self.assertTrue(os.path.exists(name))
             self.assertEqual(name, d.name)
         self.assertFalse(os.path.exists(name))
+
+    def test_modes(self):
+        for mode in range(8):
+            mode <<= 6
+            with self.subTest(mode=format(mode, '03o')):
+                d = self.do_create(recurse=3, dirs=2, files=2)
+                with d:
+                    # Change files and directories mode recursively.
+                    for root, dirs, files in os.walk(d.name, topdown=False):
+                        for name in files:
+                            os.chmod(os.path.join(root, name), mode)
+                        os.chmod(root, mode)
+                    d.cleanup()
+                self.assertFalse(os.path.exists(d.name))
+
+    def check_flags(self, flags):
+        # skip the test if these flags are not supported (ex: FreeBSD 13)
+        filename = support.TESTFN
+        try:
+            open(filename, "w").close()
+            try:
+                os.chflags(filename, flags)
+            except OSError as exc:
+                # "OSError: [Errno 45] Operation not supported"
+                self.skipTest(f"chflags() doesn't support flags "
+                              f"{flags:#b}: {exc}")
+            else:
+                os.chflags(filename, 0)
+        finally:
+            support.unlink(filename)
+
+    @unittest.skipUnless(hasattr(os, 'chflags'), 'requires os.chflags')
+    def test_flags(self):
+        flags = stat.UF_IMMUTABLE | stat.UF_NOUNLINK
+        self.check_flags(flags)
+
+        d = self.do_create(recurse=3, dirs=2, files=2)
+        with d:
+            # Change files and directories flags recursively.
+            for root, dirs, files in os.walk(d.name, topdown=False):
+                for name in files:
+                    os.chflags(os.path.join(root, name), flags)
+                os.chflags(root, flags)
+            d.cleanup()
+        self.assertFalse(os.path.exists(d.name))
 
 
 if __name__ == "__main__":

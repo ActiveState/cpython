@@ -403,14 +403,17 @@ def _rmtree_unsafe(path, onerror):
     except OSError:
         onerror(os.rmdir, path, sys.exc_info())
 
-# Version using fd-based APIs to protect against races
-def _rmtree_safe_fd(topfd, path, onerror):
+# Version using fd-based APIs to protect against races.
+# parent_fd and orig_entry locate topfd: they are passed to onerror (as dir_fd
+# and direntry) when an error is about path itself.
+def _rmtree_safe_fd(topfd, path, onerror, parent_fd=None, orig_entry=None):
     try:
         with os.scandir(topfd) as scandir_it:
             entries = list(scandir_it)
     except OSError as err:
         err.filename = path
-        onerror(os.scandir, path, sys.exc_info())
+        onerror(os.scandir, path, sys.exc_info(),
+                direntry=orig_entry, dir_fd=parent_fd)
         return
     for entry in entries:
         fullname = os.path.join(path, entry.name)
@@ -425,15 +428,17 @@ def _rmtree_safe_fd(topfd, path, onerror):
             try:
                 dirfd = os.open(entry.name, os.O_RDONLY, dir_fd=topfd)
             except OSError:
-                onerror(os.open, fullname, sys.exc_info())
+                onerror(os.open, fullname, sys.exc_info(),
+                        direntry=entry, dir_fd=topfd)
             else:
                 try:
                     if os.path.samestat(orig_st, os.fstat(dirfd)):
-                        _rmtree_safe_fd(dirfd, fullname, onerror)
+                        _rmtree_safe_fd(dirfd, fullname, onerror, topfd, entry)
                         try:
                             os.rmdir(entry.name, dir_fd=topfd)
                         except OSError:
-                            onerror(os.rmdir, fullname, sys.exc_info())
+                            onerror(os.rmdir, fullname, sys.exc_info(),
+                                    direntry=entry, dir_fd=topfd)
                     else:
                         try:
                             # This can only happen if someone replaces
@@ -442,21 +447,24 @@ def _rmtree_safe_fd(topfd, path, onerror):
                             raise OSError("Cannot call rmtree on a symbolic "
                                           "link")
                         except OSError:
-                            onerror(os.path.islink, fullname, sys.exc_info())
+                            onerror(os.path.islink, fullname, sys.exc_info(),
+                                    direntry=entry, dir_fd=topfd)
                 finally:
                     os.close(dirfd)
         else:
             try:
                 os.unlink(entry.name, dir_fd=topfd)
             except OSError:
-                onerror(os.unlink, fullname, sys.exc_info())
+                onerror(os.unlink, fullname, sys.exc_info(),
+                        direntry=entry, dir_fd=topfd)
 
 _use_fd_functions = ({os.open, os.stat, os.unlink, os.rmdir} <=
                      os.supports_dir_fd and
                      os.scandir in os.supports_fd and
                      os.stat in os.supports_follow_symlinks)
 
-def rmtree(path, ignore_errors=False, onerror=None):
+def rmtree(path, ignore_errors=False, onerror=None, *, _dir_fd=None,
+           _onerror_kwargs=False):
     """Recursively delete a directory tree.
 
     If ignore_errors is set, errors are ignored; otherwise, if onerror
@@ -467,12 +475,23 @@ def rmtree(path, ignore_errors=False, onerror=None):
     is false and onerror is None, an exception is raised.
 
     """
+    # _dir_fd and _onerror_kwargs are private, for TemporaryDirectory cleanup:
+    # path is resolved relative to the directory file descriptor _dir_fd, and
+    # onerror is also passed the keyword arguments direntry (the os.DirEntry
+    # of the failing path, or None) and dir_fd (a file descriptor of the
+    # directory containing it, or None).
     if ignore_errors:
-        def onerror(*args):
+        def onerror(*args, **kwargs):
             pass
     elif onerror is None:
-        def onerror(*args):
+        def onerror(*args, **kwargs):
             raise
+    elif not _onerror_kwargs:
+        _onerror = onerror
+        def onerror(func, path, exc_info, **kwargs):
+            return _onerror(func, path, exc_info)
+    if _dir_fd is not None and not _use_fd_functions:
+        raise NotImplementedError("_dir_fd unavailable on this platform")
     if _use_fd_functions:
         # While the unsafe rmtree works fine on bytes, the fd based does not.
         if isinstance(path, bytes):
@@ -480,28 +499,29 @@ def rmtree(path, ignore_errors=False, onerror=None):
         # Note: To guard against symlink races, we use the standard
         # lstat()/open()/fstat() trick.
         try:
-            orig_st = os.lstat(path)
+            orig_st = os.lstat(path, dir_fd=_dir_fd)
         except Exception:
-            onerror(os.lstat, path, sys.exc_info())
+            onerror(os.lstat, path, sys.exc_info(), dir_fd=_dir_fd)
             return
         try:
-            fd = os.open(path, os.O_RDONLY)
+            fd = os.open(path, os.O_RDONLY, dir_fd=_dir_fd)
         except Exception:
-            onerror(os.lstat, path, sys.exc_info())
+            onerror(os.lstat, path, sys.exc_info(), dir_fd=_dir_fd)
             return
         try:
             if os.path.samestat(orig_st, os.fstat(fd)):
-                _rmtree_safe_fd(fd, path, onerror)
+                _rmtree_safe_fd(fd, path, onerror, _dir_fd)
                 try:
-                    os.rmdir(path)
+                    os.rmdir(path, dir_fd=_dir_fd)
                 except OSError:
-                    onerror(os.rmdir, path, sys.exc_info())
+                    onerror(os.rmdir, path, sys.exc_info(), dir_fd=_dir_fd)
             else:
                 try:
                     # symlinks to directories are forbidden, see bug #1669
                     raise OSError("Cannot call rmtree on a symbolic link")
                 except OSError:
-                    onerror(os.path.islink, path, sys.exc_info())
+                    onerror(os.path.islink, path, sys.exc_info(),
+                            dir_fd=_dir_fd)
         finally:
             os.close(fd)
     else:
@@ -898,31 +918,9 @@ def _unpack_zipfile(filename, extract_dir):
     if not zipfile.is_zipfile(filename):
         raise ReadError("%s is not a zip file" % filename)
 
-    zip = zipfile.ZipFile(filename)
-    try:
-        for info in zip.infolist():
-            name = info.filename
-
-            # don't extract absolute paths or ones with .. in them
-            if name.startswith('/') or '..' in name:
-                continue
-
-            target = os.path.join(extract_dir, *name.split('/'))
-            if not target:
-                continue
-
-            _ensure_directory(target)
-            if not name.endswith('/'):
-                # file
-                data = zip.read(info.filename)
-                f = open(target, 'wb')
-                try:
-                    f.write(data)
-                finally:
-                    f.close()
-                    del data
-    finally:
-        zip.close()
+    with zipfile.ZipFile(filename) as zip:
+        zip._ignore_invalid_names = True
+        zip.extractall(extract_dir)
 
 def _unpack_tarfile(filename, extract_dir, *, filter=None):
     """Unpack tar/tar.gz/tar.bz2/tar.xz `filename` to `extract_dir`

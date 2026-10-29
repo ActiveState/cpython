@@ -77,6 +77,7 @@ class UnicodeDatabaseTest(unittest.TestCase):
         del self.db
 
 class UnicodeFunctionsTest(UnicodeDatabaseTest):
+    old = False
 
     # Update this if the database changes. Make sure to do a full rebuild
     # (e.g. 'make distclean && make') to get the correct checksum.
@@ -100,7 +101,8 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
             ]
             h.update(''.join(data).encode("ascii"))
         result = h.hexdigest()
-        self.assertEqual(result, self.expectedchecksum)
+        if not self.old:
+            self.assertEqual(result, self.expectedchecksum)
 
     def test_digit(self):
         self.assertEqual(self.db.digit('A', None), None)
@@ -119,9 +121,13 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
         self.assertEqual(self.db.numeric('9'), 9)
         self.assertEqual(self.db.numeric('\u215b'), 0.125)
         self.assertEqual(self.db.numeric('\u2468'), 9.0)
-        self.assertEqual(self.db.numeric('\ua627'), 7.0)
+        # New in 5.1.0
+        self.assertEqual(self.db.numeric('\ua627', None),
+                         None if self.old else 7.0)
         self.assertEqual(self.db.numeric('\U00020000', None), None)
-        self.assertEqual(self.db.numeric('\U0001012A'), 9000)
+        # New in 4.1.0
+        self.assertEqual(self.db.numeric('\U0001012A', None),
+                         None if self.old else 9000)
 
         self.assertRaises(TypeError, self.db.numeric)
         self.assertRaises(TypeError, self.db.numeric, 'xx')
@@ -144,7 +150,8 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
         self.assertEqual(self.db.category('a'), 'Ll')
         self.assertEqual(self.db.category('A'), 'Lu')
         self.assertEqual(self.db.category('\U00020000'), 'Lo')
-        self.assertEqual(self.db.category('\U0001012A'), 'No')
+        self.assertEqual(self.db.category('\U0001012A'),
+                         'Cn' if self.old else 'No')
 
         self.assertRaises(TypeError, self.db.category)
         self.assertRaises(TypeError, self.db.category, 'xx')
@@ -157,6 +164,15 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
 
         self.assertRaises(TypeError, self.db.bidirectional)
         self.assertRaises(TypeError, self.db.bidirectional, 'xx')
+
+    def test_bidirectional_unassigned(self):
+        self.assertEqual(self.db.bidirectional('\u0378'), '')
+        self.assertEqual(self.db.bidirectional('\u077F'), '' if self.old else 'AL')
+        self.assertEqual(self.db.bidirectional('\u20CF'), '')
+        self.assertEqual(self.db.bidirectional('\u0590'), '')
+        self.assertEqual(self.db.bidirectional('\uFFFF'), '')
+        self.assertEqual(self.db.bidirectional('\U0001FFFE'), '')
+        self.assertEqual(self.db.bidirectional('\U00010D01'), '' if self.old else 'AL')
 
     def test_decomposition(self):
         self.assertEqual(self.db.decomposition('\uFFFE'),'')
@@ -208,6 +224,34 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
         b = 'C\u0338' * 20  + '\xC7'
         self.assertEqual(self.db.normalize('NFC', a), b)
 
+    def test_long_combining_mark_run(self):
+        # gh-149079: avoid quadratic canonical ordering.
+        payload = "a" + ("\u0300\u0327" * 32)
+        nfd = "a" + ("\u0327" * 32) + ("\u0300" * 32)
+        nfc = "\u00e0" + ("\u0327" * 32) + ("\u0300" * 31)
+
+        self.assertEqual(self.db.normalize("NFD", payload), nfd)
+        self.assertEqual(self.db.normalize("NFKD", payload), nfd)
+        self.assertEqual(self.db.normalize("NFC", payload), nfc)
+        self.assertEqual(self.db.normalize("NFKC", payload), nfc)
+
+    def test_combining_mark_run_fast_paths(self):
+        # gh-149079: cover short runs and already-sorted long runs.
+        short_payload = "a" + ("\u0300\u0327" * 9) + "\u0300"
+        short_nfd = "a" + ("\u0327" * 9) + ("\u0300" * 10)
+        short_nfc = "\u00e0" + ("\u0327" * 9) + ("\u0300" * 9)
+        long_sorted = "a" + ("\u0327" * 30) + ("\u0300" * 30)
+        long_sorted_nfc = "\u00e0" + ("\u0327" * 30) + ("\u0300" * 29)
+
+        self.assertEqual(self.db.normalize("NFD", short_payload), short_nfd)
+        self.assertEqual(self.db.normalize("NFKD", short_payload), short_nfd)
+        self.assertEqual(self.db.normalize("NFC", short_payload), short_nfc)
+        self.assertEqual(self.db.normalize("NFKC", short_payload), short_nfc)
+        self.assertEqual(self.db.normalize("NFD", long_sorted), long_sorted)
+        self.assertEqual(self.db.normalize("NFKD", long_sorted), long_sorted)
+        self.assertEqual(self.db.normalize("NFC", long_sorted), long_sorted_nfc)
+        self.assertEqual(self.db.normalize("NFKC", long_sorted), long_sorted_nfc)
+
     def test_issue29456(self):
         # Fix #29456
         u1176_str_a = '\u1100\u1176\u11a8'
@@ -236,8 +280,18 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
         self.assertEqual(eaw('\U00020000'), 'W')
 
     def test_east_asian_width_9_0_changes(self):
-        self.assertEqual(self.db.ucd_3_2_0.east_asian_width('\u231a'), 'N')
-        self.assertEqual(self.db.east_asian_width('\u231a'), 'W')
+        self.assertEqual(self.db.east_asian_width('\u231a'),
+                         'N' if self.old else 'W')
+
+
+class Unicode_3_2_0_FunctionsTest(UnicodeFunctionsTest):
+    old = True
+
+    def setUp(self):
+        # 3.7's UnicodeDatabaseTest sets self.db in setUp().
+        import unicodedata
+        self.db = unicodedata.ucd_3_2_0
+
 
 class UnicodeMiscTest(UnicodeDatabaseTest):
 

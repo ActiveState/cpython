@@ -19,6 +19,7 @@ from io import BytesIO, StringIO
 import codecs
 import gc
 import os.path
+import pyexpat
 import shutil
 from urllib.error import URLError
 from test import support
@@ -1167,6 +1168,56 @@ class ExpatReaderTest(XmlTestBase):
         parser.close()
 
         self.assertEqual(result.getvalue(), start + b"<doc>text</doc>")
+
+    @unittest.skipIf(pyexpat.version_info < (2, 6, 0),
+                     f'Expat {pyexpat.version_info} does not '
+                     'support reparse deferral')
+    def test_flush_reparse_deferral_enabled(self):
+        result = BytesIO()
+        xmlgen = XMLGenerator(result)
+        parser = create_parser()
+        parser.setContentHandler(xmlgen)
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        self.assertEqual(result.getvalue(), start)  # i.e. no elements started
+        self.assertTrue(parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assertTrue(parser._parser.GetReparseDeferralEnabled())
+        self.assertEqual(result.getvalue(), start + b"<doc>")
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assertEqual(result.getvalue(), start + b"<doc></doc>")
+
+    def test_flush_reparse_deferral_disabled(self):
+        result = BytesIO()
+        xmlgen = XMLGenerator(result)
+        parser = create_parser()
+        parser.setContentHandler(xmlgen)
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        if pyexpat.version_info >= (2, 6, 0):
+            parser._parser.SetReparseDeferralEnabled(False)
+            self.assertEqual(result.getvalue(), start)  # i.e. no elements started
+
+        self.assertFalse(parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assertFalse(parser._parser.GetReparseDeferralEnabled())
+        self.assertEqual(result.getvalue(), start + b"<doc>")
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assertEqual(result.getvalue(), start + b"<doc></doc>")
 
     # ===== Locator support
 

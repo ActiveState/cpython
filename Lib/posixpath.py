@@ -35,7 +35,7 @@ __all__ = ["normcase","isabs","join","splitdrive","split","splitext",
            "samefile","sameopenfile","samestat",
            "curdir","pardir","sep","pathsep","defpath","altsep","extsep",
            "devnull","realpath","supports_unicode_filenames","relpath",
-           "commonpath"]
+           "commonpath", "ALLOW_MISSING"]
 
 
 def _get_sep(path):
@@ -279,42 +279,41 @@ def expanduser(path):
 # This expands the forms $variable and ${variable} only.
 # Non-existent variables are left unchanged.
 
-_varprog = None
-_varprogb = None
+_varpattern = r'\$(\w+|\{[^}]*\}?)'
+_varsub = None
+_varsubb = None
 
 def expandvars(path):
     """Expand shell variables of form $var and ${var}.  Unknown variables
     are left unchanged."""
     path = os.fspath(path)
-    global _varprog, _varprogb
+    global _varsub, _varsubb
     if isinstance(path, bytes):
         if b'$' not in path:
             return path
-        if not _varprogb:
+        if not _varsubb:
             import re
-            _varprogb = re.compile(br'\$(\w+|\{[^}]*\})', re.ASCII)
-        search = _varprogb.search
+            _varsubb = re.compile(_varpattern.encode(), re.ASCII).sub
+        sub = _varsubb
         start = b'{'
         end = b'}'
         environ = getattr(os, 'environb', None)
     else:
         if '$' not in path:
             return path
-        if not _varprog:
+        if not _varsub:
             import re
-            _varprog = re.compile(r'\$(\w+|\{[^}]*\})', re.ASCII)
-        search = _varprog.search
+            _varsub = re.compile(_varpattern, re.ASCII).sub
+        sub = _varsub
         start = '{'
         end = '}'
         environ = os.environ
-    i = 0
-    while True:
-        m = search(path, i)
-        if not m:
-            break
-        i, j = m.span(0)
-        name = m.group(1)
-        if name.startswith(start) and name.endswith(end):
+
+    def repl(m):
+        name = m[1]
+        if name.startswith(start):
+            if not name.endswith(end):
+                return m[0]
             name = name[1:-1]
         try:
             if environ is None:
@@ -322,13 +321,11 @@ def expandvars(path):
             else:
                 value = environ[name]
         except KeyError:
-            i = j
+            return m[0]
         else:
-            tail = path[j:]
-            path = path[:i] + value
-            i = len(path)
-            path += tail
-    return path
+            return value
+
+    return sub(repl, path)
 
 
 # Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
@@ -388,16 +385,16 @@ def abspath(path):
 # Return a canonical path (i.e. the absolute location of a file on the
 # filesystem).
 
-def realpath(filename):
+def realpath(filename, *, strict=False):
     """Return the canonical path of the specified filename, eliminating any
 symbolic links encountered in the path."""
     filename = os.fspath(filename)
-    path, ok = _joinrealpath(filename[:0], filename, {})
+    path, ok = _joinrealpath(filename[:0], filename, strict, {})
     return abspath(path)
 
 # Join two paths, normalizing and eliminating any symbolic links
 # encountered in the second path.
-def _joinrealpath(path, rest, seen):
+def _joinrealpath(path, rest, strict, seen):
     if isinstance(path, bytes):
         sep = b'/'
         curdir = b'.'
@@ -406,6 +403,12 @@ def _joinrealpath(path, rest, seen):
         sep = '/'
         curdir = '.'
         pardir = '..'
+    if strict is ALLOW_MISSING:
+        ignored_error = FileNotFoundError
+    elif strict:
+        ignored_error = ()
+    else:
+        ignored_error = OSError
 
     if isabs(rest):
         rest = rest[1:]
@@ -426,7 +429,13 @@ def _joinrealpath(path, rest, seen):
                 path = pardir
             continue
         newpath = join(path, name)
-        if not islink(newpath):
+        try:
+            st = os.lstat(newpath)
+        except ignored_error:
+            is_link = False
+        else:
+            is_link = stat.S_ISLNK(st.st_mode)
+        if not is_link:
             path = newpath
             continue
         # Resolve the symbolic link
@@ -437,10 +446,14 @@ def _joinrealpath(path, rest, seen):
                 # use cached value
                 continue
             # The symlink is not resolved, so we must have a symlink loop.
-            # Return already resolved part + rest of the path unchanged.
-            return join(newpath, rest), False
+            if strict:
+                # Raise OSError(errno.ELOOP)
+                os.stat(newpath)
+            else:
+                # Return already resolved part + rest of the path unchanged.
+                return join(newpath, rest), False
         seen[newpath] = None # not resolved symlink
-        path, ok = _joinrealpath(path, os.readlink(newpath), seen)
+        path, ok = _joinrealpath(path, os.readlink(newpath), strict, seen)
         if not ok:
             return join(path, rest), False
         seen[newpath] = path # resolved symlink

@@ -230,6 +230,15 @@ The :mod:`tarfile` module defines the following exceptions:
    Raised to refuse extracting a symbolic link pointing outside the destination
    directory.
 
+.. exception:: LinkFallbackError
+
+   Raised to refuse emulating a link (hard or symbolic) by extracting another
+   archive member, when that member would be rejected by the filter location.
+   The exception that was raised to reject the replacement member is available
+   as :attr:`!BaseException.__context__`.
+
+   .. versionadded:: 3.7.17.8
+
 
 The following constants are available at the module level:
 
@@ -713,6 +722,11 @@ A ``TarInfo`` object has the following public data attributes:
    Name of the target file name, which is only present in :class:`TarInfo` objects
    of type :const:`LNKTYPE` and :const:`SYMTYPE`.
 
+   For symbolic links (``SYMTYPE``), the *linkname* is relative to the directory
+   that contains the link.
+   For hard links (``LNKTYPE``), the *linkname* is relative to the root of
+   the archive.
+
 
 .. attribute:: TarInfo.uid
 
@@ -912,18 +926,37 @@ reused in custom filters:
     paths (in case the name is absolute
     even after stripping slashes, e.g. ``C:/foo`` on Windows).
     This raises :class:`~tarfile.AbsolutePathError`.
+  - Normalize filenames (:attr:`TarInfo.name`) that contain ``..`` components
+    using :func:`os.path.normpath`.
+    Note that this removes internal ``..`` components, which may change the
+    meaning of the name if it traverses symbolic links.
   - :ref:`Refuse <tarfile-extraction-refuse>` to extract files whose absolute
     path (after following symlinks) would end up outside the destination.
     This raises :class:`~tarfile.OutsideDestinationError`.
+  - :ref:`Refuse <tarfile-extraction-refuse>` to extract links (hard or soft)
+    whose name refers to the destination directory itself.
+    This raises :class:`~tarfile.OutsideDestinationError`.
+    Note that such files are refused even on platforms that do not support
+    symbolic links.
   - Clear high mode bits (setuid, setgid, sticky) and group/other write bits
     (:attr:`~stat.S_IWGRP`|:attr:`~stat.S_IWOTH`).
 
   Return the modified ``TarInfo`` member.
 
+  .. versionchanged:: 3.7.17.8
+
+     Filenames containing ``..`` components are now normalized.
+
 .. function:: data_filter(/, member, path)
 
   Implements the ``'data'`` filter.
   In addition to what ``tar_filter`` does:
+
+  - Normalize link targets (:attr:`TarInfo.linkname`) using
+    :func:`os.path.normpath`.
+    Note that this removes internal ``..`` components, which may change the
+    meaning of the link if the path in :attr:`!TarInfo.linkname` traverses
+    symbolic links.
 
   - :ref:`Refuse <tarfile-extraction-refuse>` to extract links (hard or soft)
     that link to absolute paths, or ones that link outside the destination.
@@ -953,6 +986,10 @@ reused in custom filters:
 
   Return the modified ``TarInfo`` member.
 
+  .. versionchanged:: 3.7.17.8
+
+     Link targets are now normalized.
+
 
 .. _tarfile-extraction-refuse:
 
@@ -979,6 +1016,7 @@ Here is an incomplete list of things to consider:
 * Extract to a :func:`new temporary directory <tempfile.mkdtemp>`
   to prevent e.g. exploiting pre-existing links, and to make it easier to
   clean up after a failed extraction.
+* Disallow symbolic links if you do not need the functionality.
 * When working with untrusted data, use external (e.g. OS-level) limits on
   disk, memory and CPU usage.
 * Check filenames against an allow-list of characters

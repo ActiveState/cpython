@@ -93,9 +93,25 @@ TOKEN_ENDS = TSPECIALS | WSP
 ASPECIALS = TSPECIALS | set("*'%")
 ATTRIBUTE_ENDS = ASPECIALS | WSP
 EXTENDED_ATTRIBUTE_ENDS = ATTRIBUTE_ENDS - set('%')
+NLSET = {'\n', '\r'}
+SPECIALSNL = SPECIALS | NLSET
+
+
+def make_quoted_pairs(value):
+    """Escape dquote and backslash for use within a quoted-string."""
+    return str(value).replace('\\', '\\\\').replace('"', '\\"')
+
+
+def make_parenthesis_pairs(value):
+    """Escape parenthesis and backslash for use within a comment."""
+    return str(value).replace('\\', '\\\\') \
+        .replace('(', '\\(').replace(')', '\\)')
+
 
 def quote_string(value):
-    return '"'+str(value).replace('\\', '\\\\').replace('"', r'\"')+'"'
+    escaped = make_quoted_pairs(value)
+    return f'"{escaped}"'
+
 
 # Match a RFC 2047 word, looks like =?utf-8?q?someword?=
 rfc2047_matcher = re.compile(r'''
@@ -152,6 +168,14 @@ class TokenList(list):
         for token in self:
             comments.extend(token.comments)
         return comments
+
+    def contains_token_type(self, *token_types):
+        if self.token_type in token_types:
+            return True
+        for t in self:
+            if t.contains_token_type(*token_types):
+                return True
+        return False
 
     def fold(self, *, policy):
         return _refold_parse_tree(self, policy=policy)
@@ -899,6 +923,9 @@ class Terminal(str):
     def comments(self):
         return []
 
+    def contains_token_type(self, *token_types):
+        return self.token_type in token_types
+
     def __getnewargs__(self):
         return(str(self), self.token_type)
 
@@ -910,7 +937,7 @@ class WhiteSpaceTerminal(Terminal):
         return ' '
 
     def startswith_fws(self):
-        return True
+        return self and self[0] in WSP
 
 
 class ValueTerminal(Terminal):
@@ -1028,7 +1055,7 @@ def get_fws(value):
     fws = WhiteSpaceTerminal(value[:len(value)-len(newvalue)], 'fws')
     return fws, newvalue
 
-def get_encoded_word(value):
+def get_encoded_word(value, terminal_type='vtext'):
     """ encoded-word = "=?" charset "?" encoding "?" encoded-text "?="
 
     """
@@ -1067,7 +1094,7 @@ def get_encoded_word(value):
             ew.append(token)
             continue
         chars, *remainder = _wsp_splitter(text, 1)
-        vtext = ValueTerminal(chars, 'vtext')
+        vtext = ValueTerminal(chars, terminal_type)
         _validate_xtext(vtext)
         ew.append(vtext)
         text = ''.join(remainder)
@@ -1109,7 +1136,7 @@ def get_unstructured(value):
         valid_ew = True
         if value.startswith('=?'):
             try:
-                token, value = get_encoded_word(value)
+                token, value = get_encoded_word(value, 'utext')
             except _InvalidEwError:
                 valid_ew = False
             except errors.HeaderParseError:
@@ -1138,7 +1165,7 @@ def get_unstructured(value):
         # the parser to go in an infinite loop.
         if valid_ew and rfc2047_matcher.search(tok):
             tok, *remainder = value.partition('=?')
-        vtext = ValueTerminal(tok, 'vtext')
+        vtext = ValueTerminal(tok, 'utext')
         _validate_xtext(vtext)
         unstructured.append(vtext)
         value = ''.join(remainder)
@@ -2659,9 +2686,13 @@ def _refold_parse_tree(parse_tree, *, policy):
             wrap_as_ew_blocked -= 1
             continue
         tstr = str(part)
-        if part.token_type == 'ptext' and set(tstr) & SPECIALS:
-            # Encode if tstr contains special characters.
-            want_encoding = True
+        if not want_encoding:
+            if part.token_type == 'ptext' or part.contains_token_type('vtext'):
+                # Encode if tstr contains special characters.
+                want_encoding = not SPECIALSNL.isdisjoint(tstr)
+            else:
+                # Encode if tstr contains newlines.
+                want_encoding = not NLSET.isdisjoint(tstr)
         try:
             tstr.encode(encoding)
             charset = encoding
@@ -2723,6 +2754,22 @@ def _refold_parse_tree(parse_tree, *, policy):
         if not hasattr(part, 'encode'):
             # It's not a terminal, try folding the subparts.
             newparts = list(part)
+            if part.token_type == 'bare-quoted-string':
+                # To fold a quoted string we need to create a list of terminal
+                # tokens that will render the leading and trailing quotes
+                # and use quoted pairs in the value as appropriate.
+                newparts = (
+                    [ValueTerminal('"', 'ptext')] +
+                    [ValueTerminal(make_quoted_pairs(p), 'ptext')
+                     for p in newparts] +
+                    [ValueTerminal('"', 'ptext')])
+            if part.token_type == 'comment':
+                newparts = (
+                    [ValueTerminal('(', 'ptext')] +
+                    [ValueTerminal(make_parenthesis_pairs(p), 'ptext')
+                     if p.token_type == 'ptext' else p
+                     for p in newparts] +
+                    [ValueTerminal(')', 'ptext')])
             if not part.as_ew_allowed:
                 wrap_as_ew_blocked += 1
                 newparts.append(end_ew_not_allowed)

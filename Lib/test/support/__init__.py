@@ -1639,6 +1639,31 @@ def check_sizeof(test, o, size):
             % (type(o), result, size)
     test.assertEqual(result, size, msg)
 
+def subTests(arg_names, arg_values, *, _do_cleanups=False):
+    """Run multiple subtests with different parameters.
+    """
+    single_param = False
+    if isinstance(arg_names, str):
+        arg_names = arg_names.replace(',',' ').split()
+        if len(arg_names) == 1:
+            single_param = True
+    arg_values = tuple(arg_values)
+    def decorator(func):
+        if isinstance(func, type):
+            raise TypeError('subTests() can only decorate methods, not classes')
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            for values in arg_values:
+                if single_param:
+                    values = (values,)
+                subtest_kwargs = dict(zip(arg_names, values))
+                with self.subTest(**subtest_kwargs):
+                    func(self, *args, **kwargs, **subtest_kwargs)
+                if _do_cleanups:
+                    self.doCleanups()
+        return wrapper
+    return decorator
+
 #=======================================================================
 # Decorator for running a function in a different locale, correctly resetting
 # it afterwards.
@@ -2483,6 +2508,23 @@ def skip_unless_symlink(test):
     msg = "Requires functional symlink implementation"
     return test if ok else unittest.skip(msg)(test)
 
+
+_can_hardlink = None
+
+def can_hardlink():
+    global _can_hardlink
+    if _can_hardlink is None:
+        # Android blocks hard links using SELinux
+        # (https://stackoverflow.com/q/32365690).
+        _can_hardlink = hasattr(os, "link") and not is_android
+    return _can_hardlink
+
+def skip_unless_hardlink(test):
+    """Skip decorator for tests that require functional hardlink"""
+    ok = can_hardlink()
+    msg = "requires hardlink support"
+    return test if ok else unittest.skip(msg)(test)
+
 _can_xattr = None
 def can_xattr():
     global _can_xattr
@@ -3019,3 +3061,20 @@ def adjust_int_max_str_digits(max_digits):
         yield
     finally:
         sys.set_int_max_str_digits(current)
+
+
+@contextlib.contextmanager
+def infinite_recursion(max_depth=75):
+    original_depth = sys.getrecursionlimit()
+    try:
+        sys.setrecursionlimit(max_depth)
+        yield
+    finally:
+        sys.setrecursionlimit(original_depth)
+
+
+def control_characters_c0():
+    """Returns a list of C0 control characters as strings.
+    C0 control characters defined as the byte range 0x00-0x1F, and 0x7F.
+    """
+    return [chr(c) for c in range(0x00, 0x20)] + ["\x7F"]

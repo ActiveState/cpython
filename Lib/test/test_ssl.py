@@ -3,12 +3,15 @@
 import sys
 import unittest
 from test import support
+import contextlib
 import re
 import socket
 import select
 import struct
+import tempfile
 import time
 import datetime
+import zipfile
 import gc
 import http.client
 import os
@@ -118,6 +121,19 @@ SIGNED_CERTFILE2 = data_file("keycert4.pem")
 SIGNED_CERTFILE2_HOSTNAME = 'fakehostname'
 SIGNED_CERTFILE_ECC = data_file("keycertecc.pem")
 SIGNED_CERTFILE_ECC_HOSTNAME = 'localhost-ecc'
+
+# gh-160040: a leaf signed by a compromised eMudhra intermediate whose public
+# key is on the _ssl distrusted list. The chain to distrusted_root.pem is
+# otherwise valid.
+# The PEMs live in a password-protected zip so the compromised eMudhra certs
+# don't trip security scanners that cannot tell internal test fixtures from
+# production secrets and flag any certificate or private key they find.  It is
+# encrypted, not merely zipped, because such scanners read inside plain archives.
+# The password is fixed, public, and not a secret; it only keeps the archive
+# from storing the PEMs in the clear.
+DISTRUSTED_SPKI_ZIP = data_file("distrusted.zip")
+DISTRUSTED_SPKI_CHOSEN_KNIGHT = b"Brave Sir Robin"  # not a secret, see comment
+DISTRUSTED_SPKI_HOSTNAME = "localhost"
 
 # Same certificate as pycacert.pem, but without extra text in file
 SIGNING_CA = data_file("capath", "ceff1710.0")
@@ -360,6 +376,34 @@ def testing_context(server_cert=SIGNED_CERTFILE):
     server_context.load_verify_locations(SIGNING_CA)
 
     return client_context, server_context, hostname
+
+
+def connected_bio_pair(client_context, server_context, hostname, max_retry=5):
+    """Handshake a client and a server SSLObject against each other.
+
+    Everything happens in memory, so this needs no socket and no thread.
+    Returns the two objects followed by their four BIOs, in the order
+    client, server, c_in, c_out, s_in, s_out.
+    """
+    c_in, c_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+    s_in, s_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+    client = client_context.wrap_bio(c_in, c_out, server_hostname=hostname)
+    server = server_context.wrap_bio(s_in, s_out, server_side=True)
+
+    # Loop on the handshake for a bit to get it settled
+    for _ in range(max_retry):
+        with contextlib.suppress(ssl.SSLWantReadError):
+            client.do_handshake()
+        if c_out.pending:
+            s_in.write(c_out.read())
+        with contextlib.suppress(ssl.SSLWantReadError):
+            server.do_handshake()
+        if s_out.pending:
+            c_in.write(s_out.read())
+    # Now the handshakes should be complete (don't raise WantReadError)
+    client.do_handshake()
+    server.do_handshake()
+    return client, server, c_in, c_out, s_in, s_out
 
 
 class BasicSocketTests(unittest.TestCase):
@@ -1495,6 +1539,8 @@ class ContextTests(unittest.TestCase):
             ctx.load_verify_locations(cadata="broken")
         with self.assertRaisesRegex(ssl.SSLError, "not enough data"):
             ctx.load_verify_locations(cadata=b"broken")
+        with self.assertRaises(ssl.SSLError):
+            ctx.load_verify_locations(cadata=cacert_der + b"A")
 
 
     def test_load_dh_params(self):
@@ -1833,6 +1879,10 @@ class SSLErrorTests(unittest.TestCase):
 
     def test_bad_server_hostname(self):
         ctx = ssl.create_default_context()
+        # Omitting the name entirely is bad too: this context checks it.
+        with self.assertWarns(DeprecationWarning):
+            ctx.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                         server_hostname=None)
         with self.assertRaises(ValueError):
             ctx.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
                          server_hostname="")
@@ -1913,6 +1963,66 @@ class SSLObjectTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "public constructor"):
             ssl.SSLObject(bio, bio)
 
+    def test_check_hostname_requires_server_hostname(self):
+        # wrap_bio() used to accept a context asking for hostname checking
+        # without a name to check against, and then verify the certificate
+        # chain but never the peer's identity without a warning. Now
+        # a warning is emitted in this scenario.
+        client_context, _, hostname = testing_context()
+        self.assertTrue(client_context.check_hostname)
+
+        server_hostname = None
+        with self.assertWarnsRegex(
+                DeprecationWarning,
+                "check_hostname requires server_hostname"):
+            client_context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                                    server_hostname=server_hostname)
+        # The sibling constructor refuses the very same call, but with
+        # a ValueError instead of DeprecationWarning.
+        with socket.socket() as sock:
+            with self.assertRaisesRegex(
+                ValueError,
+                    "check_hostname requires server_hostname"):
+                client_context.wrap_socket(
+                    sock, server_hostname=server_hostname)
+
+        # A name was all that was missing.
+        with support.check_no_warnings(self):
+            client_context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                                    server_hostname=hostname)
+
+        # Asking for no hostname check remains a way to say so explicitly.
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        self.assertFalse(context.check_hostname)
+        with support.check_no_warnings(self):
+            context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO())
+
+    def test_server_side_bad_params(self):
+        # A server neither sends a hostname nor resumes a client's session,
+        # so wrap_bio() rejects both in server mode like wrap_socket()
+        client_context, server_context, hostname = testing_context()
+
+        with self.assertRaisesRegex(
+                ValueError,
+                "server_hostname can only be specified in client mode"):
+            server_context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                                    server_side=True,
+                                    server_hostname=hostname)
+
+        client, server, *_ = connected_bio_pair(
+            client_context, server_context, hostname)
+        session = client.session
+        self.assertIsNotNone(session)
+        with self.assertRaisesRegex(
+                ValueError, "session can only be specified in client mode"):
+            server_context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                                    server_side=True, session=session)
+
+        # Neither argument is what a server passes, so this still works.
+        server_context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(),
+                                server_side=True)
+
     def test_unwrap(self):
         client_ctx, server_ctx, hostname = testing_context()
         c_in = ssl.MemoryBIO()
@@ -1954,6 +2064,110 @@ class SSLObjectTests(unittest.TestCase):
         # raise either.
         c_in.write(s_out.read())
         client.unwrap()
+
+    def test_distrusted_spki(self):
+        # gh-160040: the server chain is otherwise valid, but the eMudhra
+        # intermediate's public key is on the _ssl distrusted list, so
+        # verification rejects it.
+        client_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        # the contexts load the PEMs now, so the files are only needed here
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(DISTRUSTED_SPKI_ZIP) as z:
+                z.extractall(tmpdir, pwd=DISTRUSTED_SPKI_CHOSEN_KNIGHT)
+            certdir = os.path.join(tmpdir, "distrusted")
+            client_context.load_verify_locations(
+                os.path.join(certdir, "distrusted_root.pem"))
+            server_context.load_cert_chain(
+                os.path.join(certdir, "distrusted_keycert.pem"))
+
+        with self.assertRaises(ssl.SSLCertVerificationError) as cm:
+            connected_bio_pair(client_context, server_context,
+                               DISTRUSTED_SPKI_HOSTNAME)
+        # X509_V_ERR_CERT_REJECTED
+        self.assertEqual(cm.exception.verify_code, 28)
+
+    def test_sni_callback_context_released_and_callback_raises(self):
+        # Variant of the test below without a HelloRetryRequest: the callback
+        # switches the connection to another context, drops the last
+        # references to the context that carries it, and raises.  The C
+        # callback must not touch that context after the Python callback
+        # returned.
+        client_ctx, server_ctx, hostname = testing_context()
+        leaf_ctx = server_ctx
+
+        def sni_cb(sslobj, server_name, ctx):
+            sslobj.context = leaf_ctx
+            del ctx
+            raise LookupError("no certificate for " + repr(server_name))
+
+        def make_server():
+            dispatch_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            dispatch_ctx.load_cert_chain(SIGNED_CERTFILE)
+            dispatch_ctx.sni_callback = sni_cb
+            s_in, s_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+            server = dispatch_ctx.wrap_bio(s_in, s_out, server_side=True)
+            return server, s_in, s_out
+
+        server, s_in, s_out = make_server()
+        c_in, c_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+        client = client_ctx.wrap_bio(c_in, c_out, server_hostname=hostname)
+        with self.assertRaises(ssl.SSLWantReadError):
+            client.do_handshake()
+        s_in.write(c_out.read())
+        # 3.7 has no sys.unraisablehook; the callback's exception is
+        # reported to stderr by PyErr_WriteUnraisable().
+        with support.captured_stderr() as stderr:
+            with self.assertRaises(ssl.SSLError):
+                server.do_handshake()
+        self.assertIn('LookupError', stderr.getvalue())
+        self.assertIs(server.context, leaf_ctx)
+
+    def test_sni_callback_context_released_before_second_client_hello(self):
+        # The SSLContext carrying sni_callback may be released by the
+        # application once the callback has switched the connection over to
+        # another context.  If the server then sends a HelloRetryRequest, the
+        # second ClientHello makes OpenSSL consult the original SSL_CTX's
+        # servername callback again; that must not use the deallocated
+        # SSLContext object.
+        client_ctx, leaf_ctx, hostname = testing_context()
+        calls = []
+
+        def make_server():
+            dispatch_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            dispatch_ctx.load_cert_chain(SIGNED_CERTFILE)
+            # Force a HelloRetryRequest: the client offers an X25519 key
+            # share first, the server only accepts P-384.
+            dispatch_ctx.set_ecdh_curve("secp384r1")
+            def sni_cb(sslobj, server_name, ctx):
+                calls.append(server_name)
+                sslobj.context = leaf_ctx
+            dispatch_ctx.sni_callback = sni_cb
+            s_in, s_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+            server = dispatch_ctx.wrap_bio(s_in, s_out, server_side=True)
+            return server, s_in, s_out, weakref.ref(dispatch_ctx)
+
+        # After this only the C-level SSL object references dispatch_ctx.
+        server, s_in, s_out, dispatch_ref = make_server()
+        c_in, c_out = ssl.MemoryBIO(), ssl.MemoryBIO()
+        client = client_ctx.wrap_bio(c_in, c_out, server_hostname=hostname)
+        for _ in range(10):
+            for obj, out, peer_in in ((client, c_out, s_in),
+                                      (server, s_out, c_in)):
+                try:
+                    obj.do_handshake()
+                except ssl.SSLWantReadError:
+                    pass
+                if out.pending:
+                    peer_in.write(out.read())
+        client.do_handshake()
+        server.do_handshake()
+        support.gc_collect()
+        self.assertIsNone(dispatch_ref())
+        self.assertGreaterEqual(len(calls), 1)
+        self.assertEqual(calls[0], hostname)
+        self.assertIs(server.context, leaf_ctx)
+        self.assertIsNotNone(client.cipher())
 
 class SimpleBackgroundTests(unittest.TestCase):
     """Tests that connect to a simple server running in the background"""
@@ -4150,6 +4364,12 @@ class ThreadedTests(unittest.TestCase):
             server_result = stats['server_npn_protocols'][-1] \
                 if len(stats['server_npn_protocols']) else 'nothing'
             self.assertEqual(server_result, expected, msg % (server_result, "server"))
+
+    def test_empty_npn_protocols(self):
+        """npn_protocols cannot be empty, see CVE-2024-5642 & gh-121227"""
+        client_context, server_context, hostname = testing_context()
+        with self.assertRaises(ssl.SSLError):
+            server_context.set_npn_protocols([])
 
     def sni_contexts(self):
         server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)

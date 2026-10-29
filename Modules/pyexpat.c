@@ -1,6 +1,7 @@
 #include "Python.h"
 #include <ctype.h>
 
+#include <stdbool.h>
 #include "frameobject.h"
 #include "expat.h"
 
@@ -14,6 +15,23 @@ module pyexpat
 /*[clinic end generated code: output=da39a3ee5e6b4b0d input=b168d503a4490c15]*/
 
 #define XML_COMBINED_VERSION (10000*XML_MAJOR_VERSION+100*XML_MINOR_VERSION+XML_MICRO_VERSION)
+
+/* 3.7 has no pycore compiler-diagnostic macros (added in 3.10). */
+#ifndef _Py_COMP_DIAG_PUSH
+#  define _Py_COMP_DIAG_PUSH
+#  define _Py_COMP_DIAG_IGNORE_DEPR_DECLS
+#  define _Py_COMP_DIAG_POP
+#endif
+
+#if XML_COMBINED_VERSION >= 20900
+#  define EXPAT_GetCurrentLineNumber XML_GetCurrentLineNumber64
+#  define EXPAT_GetCurrentColumnNumber XML_GetCurrentColumnNumber64
+#  define EXPAT_GetCurrentByteIndex XML_GetCurrentByteIndex64
+#else
+#  define EXPAT_GetCurrentLineNumber XML_GetCurrentLineNumber
+#  define EXPAT_GetCurrentColumnNumber XML_GetCurrentColumnNumber
+#  define EXPAT_GetCurrentByteIndex XML_GetCurrentByteIndex
+#endif
 
 static XML_Memory_Handling_Suite ExpatMemoryHandler = {
     PyObject_Malloc, PyObject_Realloc, PyObject_Free};
@@ -56,6 +74,15 @@ typedef struct {
     PyObject_HEAD
 
     XML_Parser itself;
+    /*
+     * Strong reference to a parent `xmlparseobject` if this parser
+     * is a child parser. Set to NULL if this parser is a root parser.
+     * This is needed to keep the parent parser alive as long as it has
+     * at least one child parser.
+     *
+     * See https://github.com/python/cpython/issues/139400 for details.
+     */
+    PyObject *parent;
     int ordered_attributes;     /* Return attributes as a list. */
     int specified_attributes;   /* Report only specified attributes. */
     int in_callback;            /* Is a callback active? */
@@ -64,6 +91,12 @@ typedef struct {
                                 /* NULL if not enabled */
     int buffer_size;            /* Size of buffer, in XML_Char units */
     int buffer_used;            /* Buffer units in use */
+    bool reparse_deferral_enabled; /* Whether to defer reparsing of
+                                   unfinished XML tokens; a de-facto cache of
+                                   what Expat has the authority on, for lack
+                                   of a getter API function
+                                   "XML_GetReparseDeferralEnabled" in Expat
+                                   2.6.0 */
     PyObject *intern;           /* Dictionary to intern strings */
     PyObject **handlers;
 } xmlparseobject;
@@ -103,6 +136,16 @@ set_error_attr(PyObject *err, const char *name, int value)
     return 1;
 }
 
+static int
+set_error_attr_location(PyObject *err, const char *name,
+                        unsigned long long value)
+{
+    PyObject *v = PyLong_FromUnsignedLongLong(value);
+    int ok = v != NULL && PyObject_SetAttrString(err, name, v) != -1;
+    Py_XDECREF(v);
+    return ok;
+}
+
 /* Build and set an Expat exception, including positioning
  * information.  Always returns NULL.
  */
@@ -112,10 +155,10 @@ set_error(xmlparseobject *self, enum XML_Error code)
     PyObject *err;
     PyObject *buffer;
     XML_Parser parser = self->itself;
-    int lineno = XML_GetErrorLineNumber(parser);
-    int column = XML_GetErrorColumnNumber(parser);
+    unsigned long long lineno = EXPAT_GetCurrentLineNumber(parser);
+    unsigned long long column = EXPAT_GetCurrentColumnNumber(parser);
 
-    buffer = PyUnicode_FromFormat("%s: line %i, column %i",
+    buffer = PyUnicode_FromFormat("%s: line %llu, column %llu",
                                   XML_ErrorString(code), lineno, column);
     if (buffer == NULL)
         return NULL;
@@ -123,8 +166,8 @@ set_error(xmlparseobject *self, enum XML_Error code)
     Py_DECREF(buffer);
     if (  err != NULL
           && set_error_attr(err, "code", code)
-          && set_error_attr(err, "offset", column)
-          && set_error_attr(err, "lineno", lineno)) {
+          && set_error_attr_location(err, "offset", column)
+          && set_error_attr_location(err, "lineno", lineno)) {
         PyErr_SetObject(ErrorObject, err);
     }
     Py_XDECREF(err);
@@ -518,6 +561,10 @@ static PyObject *
 conv_content_model(XML_Content * const model,
                    PyObject *(*conv_string)(const XML_Char *))
 {
+    if (Py_EnterRecursiveCall(" in conv_content_model")) {
+        return NULL;
+    }
+
     PyObject *result = NULL;
     PyObject *children = PyTuple_New(model->numchildren);
     int i;
@@ -529,7 +576,7 @@ conv_content_model(XML_Content * const model,
                                                  conv_string);
             if (child == NULL) {
                 Py_XDECREF(children);
-                return NULL;
+                goto done;
             }
             PyTuple_SET_ITEM(children, i, child);
         }
@@ -537,6 +584,8 @@ conv_content_model(XML_Content * const model,
                                model->type, model->quant,
                                conv_string,model->name, children);
     }
+done:
+    Py_LeaveRecursiveCall();
     return result;
 }
 
@@ -704,6 +753,40 @@ get_parse_result(xmlparseobject *self, int rv)
 }
 
 #define MAX_CHUNK_SIZE (1 << 20)
+
+/*[clinic input]
+pyexpat.xmlparser.SetReparseDeferralEnabled
+
+    enabled: bool
+    /
+
+Enable/Disable reparse deferral; enabled by default with Expat >=2.6.0.
+[clinic start generated code]*/
+
+static PyObject *
+pyexpat_xmlparser_SetReparseDeferralEnabled_impl(xmlparseobject *self,
+                                                 int enabled)
+/*[clinic end generated code: output=5ec539e3b63c8c49 input=021eb9e0bafc32c5]*/
+{
+#if XML_COMBINED_VERSION >= 20600
+    XML_SetReparseDeferralEnabled(self->itself, enabled ? XML_TRUE : XML_FALSE);
+    self->reparse_deferral_enabled = (bool)enabled;
+#endif
+    Py_RETURN_NONE;
+}
+
+/*[clinic input]
+pyexpat.xmlparser.GetReparseDeferralEnabled
+
+Retrieve reparse deferral enabled status; always returns false with Expat <2.6.0.
+[clinic start generated code]*/
+
+static PyObject *
+pyexpat_xmlparser_GetReparseDeferralEnabled_impl(xmlparseobject *self)
+/*[clinic end generated code: output=4e91312e88a595a8 input=54b5f11d32b20f3e]*/
+{
+    return PyBool_FromLong(self->reparse_deferral_enabled);
+}
 
 /*[clinic input]
 pyexpat.xmlparser.Parse
@@ -897,13 +980,20 @@ pyexpat_xmlparser_GetInputContext_impl(xmlparseobject *self)
 /*[clinic end generated code: output=a88026d683fc22cc input=034df8712db68379]*/
 {
     if (self->in_callback) {
+#if XML_COMBINED_VERSION >= 20900
+        int64_t offset;
+        uint64_t size;
+        const char *buffer
+            = XML_GetInputContext64(self->itself, &offset, &size);
+#else
         int offset, size;
         const char *buffer
             = XML_GetInputContext(self->itself, &offset, &size);
+#endif
 
         if (buffer != NULL)
             return PyBytes_FromStringAndSize(buffer + offset,
-                                              size - offset);
+                                              (Py_ssize_t)(size - offset));
         else
             Py_RETURN_NONE;
     }
@@ -933,6 +1023,12 @@ pyexpat_xmlparser_ExternalEntityParserCreate_impl(xmlparseobject *self,
     new_parser = PyObject_GC_New(xmlparseobject, &Xmlparsetype);
     if (new_parser == NULL)
         return NULL;
+
+    // The new subparser will make use of the parent XML_Parser inside of Expat.
+    // So we need to take subparsers into account with the reference counting
+    // of their parent parser.
+    Py_INCREF(self);
+
     new_parser->buffer_size = self->buffer_size;
     new_parser->buffer_used = 0;
     new_parser->buffer = NULL;
@@ -942,6 +1038,7 @@ pyexpat_xmlparser_ExternalEntityParserCreate_impl(xmlparseobject *self,
     new_parser->ns_prefixes = self->ns_prefixes;
     new_parser->itself = XML_ExternalEntityParserCreate(self->itself, context,
                                                         encoding);
+    new_parser->parent = (PyObject *)self;
     new_parser->handlers = 0;
     new_parser->intern = self->intern;
     Py_XINCREF(new_parser->intern);
@@ -951,11 +1048,13 @@ pyexpat_xmlparser_ExternalEntityParserCreate_impl(xmlparseobject *self,
         new_parser->buffer = PyMem_Malloc(new_parser->buffer_size);
         if (new_parser->buffer == NULL) {
             Py_DECREF(new_parser);
+            Py_DECREF(self);
             return PyErr_NoMemory();
         }
     }
     if (!new_parser->itself) {
         Py_DECREF(new_parser);
+        Py_DECREF(self);
         return PyErr_NoMemory();
     }
 
@@ -968,6 +1067,7 @@ pyexpat_xmlparser_ExternalEntityParserCreate_impl(xmlparseobject *self,
     new_parser->handlers = PyMem_New(PyObject *, i);
     if (!new_parser->handlers) {
         Py_DECREF(new_parser);
+        Py_DECREF(self);
         return PyErr_NoMemory();
     }
     clear_handlers(new_parser, 1);
@@ -1099,6 +1199,8 @@ static struct PyMethodDef xmlparse_methods[] = {
     PYEXPAT_XMLPARSER_USEFOREIGNDTD_METHODDEF
 #endif
     PYEXPAT_XMLPARSER___DIR___METHODDEF
+    PYEXPAT_XMLPARSER_SETREPARSEDEFERRALENABLED_METHODDEF
+    PYEXPAT_XMLPARSER_GETREPARSEDEFERRALENABLED_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 
@@ -1181,18 +1283,27 @@ newxmlparseobject(const char *encoding, const char *namespace_separator, PyObjec
     self->handlers = NULL;
     self->intern = intern;
     Py_XINCREF(self->intern);
+#if XML_COMBINED_VERSION >= 20600
+    self->reparse_deferral_enabled = true;
+#else
+    self->reparse_deferral_enabled = false;
+#endif
     PyObject_GC_Track(self);
 
     /* namespace_separator is either NULL or contains one char + \0 */
     self->itself = XML_ParserCreate_MM(encoding, &ExpatMemoryHandler,
                                        namespace_separator);
+    self->parent = NULL;
     if (self->itself == NULL) {
         PyErr_SetString(PyExc_RuntimeError,
                         "XML_ParserCreate failed");
         Py_DECREF(self);
         return NULL;
     }
-#if XML_COMBINED_VERSION >= 20100
+#if XML_COMBINED_VERSION >= 20800
+    /* This feature was added upstream in libexpat 2.8.0. */
+    XML_SetHashSalt16Bytes(self->itself, _Py_HashSecret.expat.hashsalt16);
+#elif XML_COMBINED_VERSION >= 20100
     /* This feature was added upstream in libexpat 2.1.0. */
     XML_SetHashSalt(self->itself,
                     (unsigned long)_Py_HashSecret.expat.hashsalt);
@@ -1223,6 +1334,7 @@ xmlparse_dealloc(xmlparseobject *self)
     if (self->itself != NULL)
         XML_ParserFree(self->itself);
     self->itself = NULL;
+    Py_CLEAR(self->parent);
 
     if (self->handlers != NULL) {
         for (i = 0; handler_info[i].name != NULL; i++)
@@ -1285,25 +1397,25 @@ xmlparse_getattro(xmlparseobject *self, PyObject *nameobj)
             return PyLong_FromLong((long)
                                   XML_GetErrorCode(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorLineNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorLineNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentLineNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorColumnNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorColumnNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentColumnNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "ErrorByteIndex"))
-            return PyLong_FromLong((long)
-                                  XML_GetErrorByteIndex(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentByteIndex(self->itself));
     }
     if (first_char == 'C') {
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentLineNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentLineNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentLineNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentColumnNumber"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentColumnNumber(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentColumnNumber(self->itself));
         if (_PyUnicode_EqualToASCIIString(nameobj, "CurrentByteIndex"))
-            return PyLong_FromLong((long)
-                                  XML_GetCurrentByteIndex(self->itself));
+            return PyLong_FromLongLong((long long)
+                                       EXPAT_GetCurrentByteIndex(self->itself));
     }
     if (first_char == 'b') {
         if (_PyUnicode_EqualToASCIIString(nameobj, "buffer_size"))
@@ -1493,6 +1605,7 @@ xmlparse_traverse(xmlparseobject *op, visitproc visit, void *arg)
     int i;
     for (i = 0; handler_info[i].name != NULL; i++)
         Py_VISIT(op->handlers[i]);
+    Py_VISIT(op->parent);
     return 0;
 }
 
@@ -1501,6 +1614,10 @@ xmlparse_clear(xmlparseobject *op)
 {
     clear_handlers(op, 0);
     Py_CLEAR(op->intern);
+    // NOTE: We cannot call Py_CLEAR(op->parent) prior to calling
+    //       XML_ParserFree(op->itself), or a subparser could lose its parent
+    //       XML_Parser while still making use of it internally.
+    //       https://github.com/python/cpython/issues/139400
     return 0;
 }
 
@@ -1865,8 +1982,11 @@ MODULE_INITFUNC(void)
     capi.MICRO_VERSION = XML_MICRO_VERSION;
     capi.ErrorString = XML_ErrorString;
     capi.GetErrorCode = XML_GetErrorCode;
+_Py_COMP_DIAG_PUSH
+_Py_COMP_DIAG_IGNORE_DEPR_DECLS
     capi.GetErrorColumnNumber = XML_GetErrorColumnNumber;
     capi.GetErrorLineNumber = XML_GetErrorLineNumber;
+_Py_COMP_DIAG_POP
     capi.Parse = XML_Parse;
     capi.ParserCreate_MM = XML_ParserCreate_MM;
     capi.ParserFree = XML_ParserFree;
@@ -1882,9 +2002,22 @@ MODULE_INITFUNC(void)
     capi.SetEncoding = XML_SetEncoding;
     capi.DefaultUnknownEncodingHandler = PyUnknownEncodingHandler;
 #if XML_COMBINED_VERSION >= 20100
+_Py_COMP_DIAG_PUSH
+_Py_COMP_DIAG_IGNORE_DEPR_DECLS
     capi.SetHashSalt = XML_SetHashSalt;
+_Py_COMP_DIAG_POP
 #else
     capi.SetHashSalt = NULL;
+#endif
+#if XML_COMBINED_VERSION >= 20800
+    capi.SetHashSalt16Bytes = XML_SetHashSalt16Bytes;
+#else
+    capi.SetHashSalt16Bytes = NULL;
+#endif
+#if XML_COMBINED_VERSION >= 20600
+    capi.SetReparseDeferralEnabled = XML_SetReparseDeferralEnabled;
+#else
+    capi.SetReparseDeferralEnabled = NULL;
 #endif
 
     /* export using capsule */

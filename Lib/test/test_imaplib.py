@@ -189,6 +189,10 @@ class SimpleIMAPHandler(socketserver.StreamRequestHandler):
         self.server.logged = args[0]
         self._send_tagged(tag, 'OK', 'LOGIN completed')
 
+    def cmd_SELECT(self, tag, args):
+        self._send_line(b'* 2 EXISTS')
+        self._send_tagged(tag, 'OK', '[READ-WRITE] SELECT completed.')
+
 
 class NewIMAPTestsMixin():
     client = None
@@ -484,6 +488,21 @@ class NewIMAPTestsMixin():
         typ, data = client.lsub()
         self.assertEqual(typ, 'OK')
         self.assertEqual(data[0], b'() "." directoryA')
+
+    def test_control_characters(self):
+        client, server = self._setup(SimpleIMAPHandler)
+        client.login('user', 'pass')
+        for c in '\0\r\n':
+            with self.assertRaises(ValueError):
+                client.select(f'a{c}b')
+        # Other control characters are valid in a quoted string and can
+        # occur in mailbox names returned by the server, so they must
+        # still be accepted.
+        for c in support.control_characters_c0():
+            if c in '\0\r\n':
+                continue
+            typ, _ = client.select(f'a{c}b')
+            self.assertEqual(typ, 'OK')
 
 
 class NewIMAPTests(NewIMAPTestsMixin, unittest.TestCase):
@@ -853,6 +872,21 @@ class ThreadedNetworkedTests(unittest.TestCase):
         with self.reaped_server(TooLongHandler) as server:
             self.assertRaises(imaplib.IMAP4.error,
                               self.imap_class, *server.server_address)
+
+    @reap_threads
+    def test_truncated_large_literal(self):
+        size = 0
+        class BadHandler(SimpleIMAPHandler):
+            def handle(self):
+                self._send_textline('* OK {%d}' % size)
+                self._send_textline('IMAP4rev1')
+
+        for exponent in range(15, 64):
+            size = 1 << exponent
+            with self.subTest(f"size=2e{size}"):
+                with self.reaped_server(BadHandler) as server:
+                    with self.assertRaises(imaplib.IMAP4.abort):
+                        self.imap_class(*server.server_address)
 
     @reap_threads
     def test_simple_with_statement(self):

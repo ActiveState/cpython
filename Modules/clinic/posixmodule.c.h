@@ -1076,7 +1076,8 @@ PyDoc_STRVAR(os_mkdir__doc__,
 "dir_fd may not be implemented on your platform.\n"
 "  If it is unavailable, using it will raise a NotImplementedError.\n"
 "\n"
-"The mode argument is ignored on Windows.");
+"On Windows, a mode of 0o700 restricts access to the new directory to the\n"
+"current user and administrators; other values of mode are ignored.");
 
 #define OS_MKDIR_METHODDEF    \
     {"mkdir", (PyCFunction)os_mkdir, METH_FASTCALL|METH_KEYWORDS, os_mkdir__doc__},
@@ -6538,4 +6539,4 @@ exit:
 #ifndef OS_GETRANDOM_METHODDEF
     #define OS_GETRANDOM_METHODDEF
 #endif /* !defined(OS_GETRANDOM_METHODDEF) */
-/*[clinic end generated code: output=f6eff86ac86bfce4 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=af01a92e9a887611 input=a9049054013a1b77]*/

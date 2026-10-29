@@ -11,6 +11,7 @@ import traceback
 from xml.parsers import expat
 from xml.parsers.expat import errors
 
+from test.support import infinite_recursion
 from test.support import sortdict
 
 
@@ -642,6 +643,24 @@ class ChardataBufferTest(unittest.TestCase):
         parser.Parse(xml2, 1)
         self.assertEqual(self.n, 4)
 
+class ElementDeclHandlerTest(unittest.TestCase):
+    def test_deeply_nested_content_model(self):
+        # This should raise a RecursionError and not crash.
+        # See https://github.com/python/cpython/issues/145986.
+        N = 500_000
+        data = (
+            b'<!DOCTYPE root [\n<!ELEMENT root '
+            + b'(a, ' * N + b'a' + b')' * N
+            + b'>\n]>\n<root/>\n'
+        )
+
+        parser = expat.ParserCreate()
+        parser.ElementDeclHandler = lambda _1, _2: None
+        with infinite_recursion():
+            with self.assertRaises(RecursionError):
+                parser.Parse(data)
+
+
 class MalformedInputTest(unittest.TestCase):
     def test1(self):
         xml = b"\0\r\n"
@@ -727,6 +746,95 @@ class ForeignDTDTests(unittest.TestCase):
         parser.Parse(
             b"<?xml version='1.0'?><!DOCTYPE foo PUBLIC 'bar' 'baz'><element/>")
         self.assertEqual(handler_call_args, [("bar", "baz")])
+
+
+class ParentParserLifetimeTest(unittest.TestCase):
+    """
+    Subparsers make use of their parent XML_Parser inside of Expat.
+    As a result, parent parsers need to outlive subparsers.
+
+    See https://github.com/python/cpython/issues/139400.
+    """
+
+    def test_parent_parser_outlives_its_subparsers__single(self):
+        parser = expat.ParserCreate()
+        subparser = parser.ExternalEntityParserCreate(None)
+
+        # Now try to cause garbage collection of the parent parser
+        # while it's still being referenced by a related subparser.
+        del parser
+
+    def test_parent_parser_outlives_its_subparsers__multiple(self):
+        parser = expat.ParserCreate()
+        subparser_one = parser.ExternalEntityParserCreate(None)
+        subparser_two = parser.ExternalEntityParserCreate(None)
+
+        # Now try to cause garbage collection of the parent parser
+        # while it's still being referenced by a related subparser.
+        del parser
+
+    def test_parent_parser_outlives_its_subparsers__chain(self):
+        parser = expat.ParserCreate()
+        subparser = parser.ExternalEntityParserCreate(None)
+        subsubparser = subparser.ExternalEntityParserCreate(None)
+
+        # Now try to cause garbage collection of the parent parsers
+        # while they are still being referenced by a related subparser.
+        del parser
+        del subparser
+
+class ReparseDeferralTest(unittest.TestCase):
+    def test_getter_setter_round_trip(self):
+        parser = expat.ParserCreate()
+        enabled = (expat.version_info >= (2, 6, 0))
+
+        self.assertIs(parser.GetReparseDeferralEnabled(), enabled)
+        parser.SetReparseDeferralEnabled(False)
+        self.assertIs(parser.GetReparseDeferralEnabled(), False)
+        parser.SetReparseDeferralEnabled(True)
+        self.assertIs(parser.GetReparseDeferralEnabled(), enabled)
+
+    def test_reparse_deferral_enabled(self):
+        if expat.version_info < (2, 6, 0):
+            self.skipTest(f'Expat {expat.version_info} does not '
+                          'support reparse deferral')
+
+        started = []
+
+        def start_element(name, _):
+            started.append(name)
+
+        parser = expat.ParserCreate()
+        parser.StartElementHandler = start_element
+        self.assertTrue(parser.GetReparseDeferralEnabled())
+
+        for chunk in (b'<doc', b'/>'):
+            parser.Parse(chunk, False)
+
+        # The key test: Have handlers already fired?  Expecting: no.
+        self.assertEqual(started, [])
+
+        parser.Parse(b'', True)
+
+        self.assertEqual(started, ['doc'])
+
+    def test_reparse_deferral_disabled(self):
+        started = []
+
+        def start_element(name, _):
+            started.append(name)
+
+        parser = expat.ParserCreate()
+        parser.StartElementHandler = start_element
+        if expat.version_info >= (2, 6, 0):
+            parser.SetReparseDeferralEnabled(False)
+        self.assertFalse(parser.GetReparseDeferralEnabled())
+
+        for chunk in (b'<doc', b'/>'):
+            parser.Parse(chunk, False)
+
+        # The key test: Have handlers already fired?  Expecting: yes.
+        self.assertEqual(started, ['doc'])
 
 
 if __name__ == "__main__":

@@ -14,12 +14,15 @@ import random
 from copy import deepcopy
 from io import StringIO, BytesIO
 from email.utils import _has_surrogates
+from email.errors import HeaderWriteError
 
 UNDERSCORE = '_'
 NL = '\n'  # XXX: no longer used by the code below.
 
 NLCRE = re.compile(r'\r\n|\r|\n')
 fcre = re.compile(r'^From ', re.MULTILINE)
+NEWLINE_WITHOUT_FWSP = re.compile(r'\r\n[^ \t]|\r[^ \n\t]|\n[^ \t]')
+NEWLINE_WITHOUT_FWSP_BYTES = re.compile(br'\r\n[^ \t]|\r[^ \n\t]|\n[^ \t]')
 
 
 
@@ -219,7 +222,16 @@ class Generator:
 
     def _write_headers(self, msg):
         for h, v in msg.raw_items():
-            self.write(self.policy.fold(h, v))
+            folded = self.policy.fold(h, v)
+            if self.policy.verify_generated_headers:
+                linesep = self.policy.linesep
+                if not folded.endswith(self.policy.linesep):
+                    raise HeaderWriteError(
+                        f'folded header does not end with {linesep!r}: {folded!r}')
+                if NEWLINE_WITHOUT_FWSP.search(folded[:len(folded) - len(linesep)]):
+                    raise HeaderWriteError(
+                        f'folded header contains newline: {folded!r}')
+            self.write(folded)
         # A blank line always separates headers from body
         self.write(self._NL)
 
@@ -415,7 +427,16 @@ class BytesGenerator(Generator):
         # This is almost the same as the string version, except for handling
         # strings with 8bit bytes.
         for h, v in msg.raw_items():
-            self._fp.write(self.policy.fold_binary(h, v))
+            folded = self.policy.fold_binary(h, v)
+            if self.policy.verify_generated_headers:
+                linesep = self.policy.linesep.encode()
+                if not folded.endswith(linesep):
+                    raise HeaderWriteError(
+                        f'folded header does not end with {linesep!r}: {folded!r}')
+                if NEWLINE_WITHOUT_FWSP_BYTES.search(folded[:len(folded) - len(linesep)]):
+                    raise HeaderWriteError(
+                        f'folded header contains newline: {folded!r}')
+            self._fp.write(folded)
         # A blank line always separates headers from body
         self.write(self._NL)
 

@@ -52,6 +52,9 @@ AllowedVersions = ('IMAP4REV1', 'IMAP4')        # Most recent first
 # search command can be quite large, so we now use 1M.
 _MAXLINE = 1000000
 
+# Data larger than this will be read in chunks, to prevent extreme
+# overallocation.
+_SAFE_BUF_SIZE = 1 << 20
 
 #       Commands
 
@@ -128,7 +131,9 @@ Untagged_status = re.compile(
 # We compile these in _mode_xxx.
 _Literal = br'.*{(?P<size>\d+)}$'
 _Untagged_status = br'\* (?P<data>\d+) (?P<type>[A-Z-]+)( (?P<data2>.*))?'
-
+# Only NUL, CR and LF are unsafe (they cannot be represented even in
+# a quoted string, and CR/LF would end the command line early).
+_control_chars = re.compile(b'[\x00\r\n]')
 
 
 class IMAP4:
@@ -302,7 +307,13 @@ class IMAP4:
 
     def read(self, size):
         """Read 'size' bytes from remote."""
-        return self.file.read(size)
+        cursize = min(size, _SAFE_BUF_SIZE)
+        data = self.file.read(cursize)
+        while cursize < size and len(data) == cursize:
+            delta = min(cursize, size - cursize)
+            data += self.file.read(delta)
+            cursize += delta
+        return data
 
 
     def readline(self):
@@ -958,6 +969,8 @@ class IMAP4:
             if arg is None: continue
             if isinstance(arg, str):
                 arg = bytes(arg, self._encoding)
+            if _control_chars.search(arg):
+                raise ValueError("NUL, CR and LF not allowed in commands")
             data = data + b' ' + arg
 
         literal = self.literal

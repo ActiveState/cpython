@@ -435,6 +435,8 @@ class SSLContext(_SSLContext):
 
     def set_npn_protocols(self, npn_protocols):
         protos = bytearray()
+        if not npn_protocols:
+            raise SSLError('NPN protocols must not be empty')
         for protocol in npn_protocols:
             b = bytes(protocol, 'ascii')
             if len(b) == 0 or len(b) > 255:
@@ -663,6 +665,19 @@ class SSLObject:
     @classmethod
     def _create(cls, incoming, outgoing, server_side=False,
                  server_hostname=None, session=None, context=None):
+        if server_side:
+            if server_hostname:
+                raise ValueError("server_hostname can only be specified "
+                                 "in client mode")
+            if session is not None:
+                raise ValueError("session can only be specified in "
+                                 "client mode")
+        if context.check_hostname and server_hostname is None:
+            # Note: server_hostname='' is handled within _wrap_bio().
+            warnings.warn("check_hostname requires server_hostname",
+                          category=DeprecationWarning,
+                          stacklevel=3)
+
         self = cls.__new__(cls)
         sslobj = context._wrap_bio(
             incoming, outgoing, server_side=server_side,

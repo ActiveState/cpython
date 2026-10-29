@@ -1,0 +1,9 @@
+Upgrade the bundled pip in :mod:`ensurepip` from 23.0.1 to 24.0.post4, the
+ActiveState security release of pip 24.0 (the last pip that supports Python
+3.7).  Its vendored certifi CA bundle (2026.10.23) drops the emSign roots of
+the compromised eMudhra/emSign CA except emSign Root CA - G1; it fixes
+CVE-2023-5752, CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357,
+CVE-2026-8643 and CVE-2026-13346, and its vendored urllib3 and requests fix
+CVE-2023-45803, CVE-2024-37891, CVE-2025-50181, CVE-2025-66418,
+CVE-2025-66471, CVE-2026-21441, CVE-2026-44431, CVE-2026-97687,
+CVE-2026-97689, CVE-2024-47081 and CVE-2026-25645.

@@ -1,0 +1,5 @@
+CVE-2022-42919 does not affect Python 3.7. Upstream 3.9 made the
+:mod:`multiprocessing` *forkserver* prefer Linux abstract sockets, which have
+no filesystem permissions, so any user on the system could connect to it;
+3.9.16 reverted that. In 3.7, ``AF_UNIX`` listeners have always used a
+filesystem path, so no code change is needed.

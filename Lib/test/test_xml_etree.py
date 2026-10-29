@@ -11,6 +11,7 @@ import html
 import io
 import operator
 import pickle
+import pyexpat
 import sys
 import types
 import unittest
@@ -97,6 +98,7 @@ EXTERNAL_ENTITY_XML = """\
 ]>
 <document>&entity;</document>
 """
+
 
 def checkwarnings(*filters, quiet=False):
     def decorator(test):
@@ -1047,40 +1049,49 @@ class ElementTreeTest(unittest.TestCase):
 
 class XMLPullParserTest(unittest.TestCase):
 
-    def _feed(self, parser, data, chunk_size=None):
+    def _feed(self, parser, data, chunk_size=None, flush=False):
         if chunk_size is None:
             parser.feed(data)
         else:
             for i in range(0, len(data), chunk_size):
                 parser.feed(data[i:i+chunk_size])
+        if flush:
+            parser.flush()
 
     def assert_event_tags(self, parser, expected):
         events = parser.read_events()
         self.assertEqual([(action, elem.tag) for action, elem in events],
                          expected)
 
-    def test_simple_xml(self):
-        for chunk_size in (None, 1, 5):
-            with self.subTest(chunk_size=chunk_size):
-                parser = ET.XMLPullParser()
-                self.assert_event_tags(parser, [])
-                self._feed(parser, "<!-- comment -->\n", chunk_size)
-                self.assert_event_tags(parser, [])
-                self._feed(parser,
-                           "<root>\n  <element key='value'>text</element",
-                           chunk_size)
-                self.assert_event_tags(parser, [])
-                self._feed(parser, ">\n", chunk_size)
-                self.assert_event_tags(parser, [('end', 'element')])
-                self._feed(parser, "<element>text</element>tail\n", chunk_size)
-                self._feed(parser, "<empty-element/>\n", chunk_size)
-                self.assert_event_tags(parser, [
-                    ('end', 'element'),
-                    ('end', 'empty-element'),
-                    ])
-                self._feed(parser, "</root>\n", chunk_size)
-                self.assert_event_tags(parser, [('end', 'root')])
-                self.assertIsNone(parser.close())
+    def test_simple_xml(self, chunk_size=None, flush=False):
+        parser = ET.XMLPullParser()
+        self.assert_event_tags(parser, [])
+        self._feed(parser, "<!-- comment -->\n", chunk_size, flush)
+        self.assert_event_tags(parser, [])
+        self._feed(parser,
+                   "<root>\n  <element key='value'>text</element",
+                   chunk_size, flush)
+        self.assert_event_tags(parser, [])
+        self._feed(parser, ">\n", chunk_size, flush)
+        self.assert_event_tags(parser, [('end', 'element')])
+        self._feed(parser, "<element>text</element>tail\n", chunk_size, flush)
+        self._feed(parser, "<empty-element/>\n", chunk_size, flush)
+        self.assert_event_tags(parser, [
+            ('end', 'element'),
+            ('end', 'empty-element'),
+            ])
+        self._feed(parser, "</root>\n", chunk_size, flush)
+        self.assert_event_tags(parser, [('end', 'root')])
+        self.assertIsNone(parser.close())
+
+    def test_simple_xml_chunk_1(self):
+        self.test_simple_xml(chunk_size=1, flush=True)
+
+    def test_simple_xml_chunk_5(self):
+        self.test_simple_xml(chunk_size=5, flush=True)
+
+    def test_simple_xml_chunk_22(self):
+        self.test_simple_xml(chunk_size=22)
 
     def test_feed_while_iterating(self):
         parser = ET.XMLPullParser()
@@ -1198,6 +1209,56 @@ class XMLPullParserTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ET.XMLPullParser(events=('start', 'end', 'bogus'))
 
+    @unittest.skipIf(pyexpat.version_info < (2, 6, 0),
+                     f'Expat {pyexpat.version_info} does not '
+                     'support reparse deferral')
+    def test_flush_reparse_deferral_enabled(self):
+        parser = ET.XMLPullParser(events=('start', 'end'))
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        self.assert_event_tags(parser, [])  # i.e. no elements started
+        if ET is pyET:
+            self.assertTrue(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assert_event_tags(parser, [('start', 'doc')])
+        if ET is pyET:
+            self.assertTrue(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assert_event_tags(parser, [('end', 'doc')])
+
+    def test_flush_reparse_deferral_disabled(self):
+        parser = ET.XMLPullParser(events=('start', 'end'))
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        if pyexpat.version_info >= (2, 6, 0):
+            if not ET is pyET:
+                self.skipTest(f'XMLParser.(Get|Set)ReparseDeferralEnabled '
+                              'methods not available in C')
+            parser._parser._parser.SetReparseDeferralEnabled(False)
+            self.assert_event_tags(parser, [])  # i.e. no elements started
+
+        if ET is pyET:
+            self.assertFalse(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assert_event_tags(parser, [('start', 'doc')])
+        if ET is pyET:
+            self.assertFalse(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assert_event_tags(parser, [('end', 'doc')])
 
 #
 # xinclude tests (samples from appendix C of the xinclude specification)
@@ -2215,6 +2276,37 @@ class ElementFindTest(unittest.TestCase):
         self.assertRaisesRegex(SyntaxError, 'XPath', e.find, './tag[-1]')
         self.assertRaisesRegex(SyntaxError, 'XPath', e.find, './tag[last()-0]')
         self.assertRaisesRegex(SyntaxError, 'XPath', e.find, './tag[last()+1]')
+
+    def test_find_xpath_index_no_quadratic_complexity(self):
+        class CountingElement(ET.Element):
+            findall_calls = 0
+            def findall(self, *args, **kwargs):
+                type(self).findall_calls += 1
+                return super().findall(*args, **kwargs)
+
+        def work(n, pattern):
+            root = CountingElement("root")
+            for _ in range(n):
+                ET.SubElement(root, "a")
+            CountingElement.findall_calls = 0
+            root.findall(pattern)
+            return CountingElement.findall_calls
+
+        for pattern in [".//a[1]", ".//a[last()]"]:
+            w1 = work(1024, pattern)
+            w2 = work(2048, pattern)
+            w3 = work(4096, pattern)
+
+            self.assertGreater(w1, 0)
+            r1 = w2 / w1
+            r2 = w3 / w2
+            # Doubling N must not ~double the parent.findall calls.
+            # Linear-in-N call counts indicate the cache is missing.
+            self.assertLess(
+                max(r1, r2), 1.5,
+                msg=f"Possible quadratic behavior on {pattern!r}: "
+                    f"calls={w1, w2, w3} ratios={r1, r2}",
+            )
 
     def test_findall(self):
         e = ET.XML(SAMPLE_XML)

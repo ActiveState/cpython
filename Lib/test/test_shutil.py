@@ -225,6 +225,37 @@ class TestShutil(unittest.TestCase):
         self.assertEqual(self.errorState, 3,
                          "Expected call to onerror function did not happen.")
 
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                     "This test can't be run reliably as root (issue #1076467).")
+    @unittest.skipUnless(shutil.rmtree.avoids_symlink_attacks,
+                         'requires the fd based implementation of rmtree()')
+    def test_on_error_kwargs(self):
+        os.mkdir(TESTFN)
+        self.addCleanup(shutil.rmtree, TESTFN)
+
+        child_dir_path = os.path.join(TESTFN, 'b')
+        child_file_path = os.path.join(child_dir_path, 'a')
+        os.mkdir(child_dir_path)
+        support.create_empty_file(child_file_path)
+        old_child_dir_mode = os.stat(child_dir_path).st_mode
+        # Make unwritable.
+        new_mode = stat.S_IREAD|stat.S_IEXEC
+        os.chmod(child_dir_path, new_mode)
+
+        self.addCleanup(os.chmod, child_dir_path, old_child_dir_mode)
+
+        calls = []
+        def onerror(func, path, exc_info, direntry=None, dir_fd=None):
+            calls.append((func, path, exc_info))
+            if func is os.unlink:
+                self.assertEqual(direntry.name, os.path.basename(path))
+                self.assertTrue(os.path.samestat(
+                    os.stat(path), os.stat(direntry.name, dir_fd=dir_fd)))
+
+        shutil.rmtree(TESTFN, onerror=onerror, _onerror_kwargs=True)
+        self.assertIn((os.unlink, child_file_path),
+                      [(func, path) for func, path, exc_info in calls])
+
     def check_args_to_onerror(self, func, arg, exc):
         # test_rmtree_errors deliberately runs rmtree
         # on a directory that is chmod 500, which will fail.
@@ -1299,6 +1330,71 @@ class TestShutil(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.check_unpack_archive('zip', filter='data')
 
+    def test_unpack_archive_zip_badpaths(self):
+        srcdir = self.mkdtemp()
+        zipname = os.path.join(srcdir, 'test.zip')
+        abspath = os.path.join(srcdir, 'abspath')
+        with zipfile.ZipFile(zipname, 'w') as zf:
+            zf.writestr(abspath, 'badfile')
+            zf.writestr(os.sep + abspath, 'badfile')
+            zf.writestr('/abspath', 'badfile')
+            zf.writestr('C:/abspath', 'badfile')
+            zf.writestr('D:\\abspath', 'badfile')
+            zf.writestr('E:abspath', 'badfile')
+            zf.writestr('F:/G:/abspath', 'badfile')
+            zf.writestr('//server/share/abspath', 'badfile')
+            zf.writestr('\\\\server2\\share\\abspath', 'badfile')
+            zf.writestr('../relpath', 'badfile')
+            zf.writestr(os.pardir + os.sep + 'relpath2', 'badfile')
+            zf.writestr('good/file', 'goodfile')
+            zf.writestr('good..file', 'goodfile')
+
+        dstdir = os.path.join(self.mkdtemp(), 'dst')
+        unpack_archive(zipname, dstdir)
+        self.assertTrue(os.path.isfile(os.path.join(dstdir, 'good', 'file')))
+        self.assertTrue(os.path.isfile(os.path.join(dstdir, 'good..file')))
+        self.assertFalse(os.path.exists(abspath))
+        self.assertFalse(os.path.exists(os.path.join(dstdir, 'abspath')))
+        self.assertFalse(os.path.exists(os.path.join(dstdir, 'G_')))
+        self.assertFalse(os.path.exists(os.path.join(dstdir, 'server')))
+        if os.name != 'nt':
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, 'C:', 'abspath')))
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, 'D:\\abspath')))
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, 'E:abspath')))
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, 'F:', 'G:', 'abspath')))
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, '\\\\server2\\share\\abspath')))
+        if os.pardir == '..':
+            self.assertFalse(os.path.exists(os.path.join(dstdir, '..', 'relpath')))
+            self.assertFalse(os.path.exists(os.path.join(dstdir, 'relpath')))
+        else:
+            self.assertTrue(os.path.isfile(os.path.join(dstdir, '..', 'relpath')))
+        self.assertFalse(os.path.exists(os.path.join(dstdir, os.pardir, 'relpath2')))
+        self.assertFalse(os.path.exists(os.path.join(dstdir, 'relpath2')))
+
+        dstdir2 = os.path.join(self.mkdtemp(), 'dst')
+        os.mkdir(dstdir2)
+        with support.change_cwd(dstdir2):
+            unpack_archive(zipname, '')
+            self.assertTrue(os.path.isfile(os.path.join('good', 'file')))
+            self.assertTrue(os.path.isfile('good..file'))
+            self.assertFalse(os.path.exists(abspath))
+            self.assertFalse(os.path.exists('abspath'))
+            self.assertFalse(os.path.exists('C_'))
+            self.assertFalse(os.path.exists('server'))
+            if os.name != 'nt':
+                self.assertTrue(os.path.isfile(os.path.join('C:', 'abspath')))
+                self.assertTrue(os.path.isfile('D:\\abspath'))
+                self.assertTrue(os.path.isfile('E:abspath'))
+                self.assertTrue(os.path.isfile(os.path.join('F:', 'G:', 'abspath')))
+                self.assertTrue(os.path.isfile('\\\\server2\\share\\abspath'))
+            if os.pardir == '..':
+                self.assertFalse(os.path.exists(os.path.join('..', 'relpath')))
+                self.assertFalse(os.path.exists('relpath'))
+            else:
+                self.assertTrue(os.path.isfile(os.path.join('..', 'relpath')))
+            self.assertFalse(os.path.exists(os.path.join(os.pardir, 'relpath2')))
+            self.assertFalse(os.path.exists('relpath2'))
+
     def test_unpack_registry(self):
 
         formats = get_unpack_formats()
@@ -1756,11 +1852,7 @@ class TestMove(unittest.TestCase):
         dst_link = os.path.join(self.dst_dir, 'quux')
         shutil.move(dst, dst_link)
         self.assertTrue(os.path.islink(dst_link))
-        # On Windows, os.path.realpath does not follow symlinks (issue #9949)
-        if os.name == 'nt':
-            self.assertEqual(os.path.realpath(src), os.readlink(dst_link))
-        else:
-            self.assertEqual(os.path.realpath(src), os.path.realpath(dst_link))
+        self.assertEqual(os.path.realpath(src), os.path.realpath(dst_link))
 
     @support.skip_unless_symlink
     @mock_rename

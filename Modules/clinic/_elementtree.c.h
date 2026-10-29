@@ -672,6 +672,23 @@ _elementtree_XMLParser_close(XMLParserObject *self, PyObject *Py_UNUSED(ignored)
     return _elementtree_XMLParser_close_impl(self);
 }
 
+PyDoc_STRVAR(_elementtree_XMLParser_flush__doc__,
+"flush($self, /)\n"
+"--\n"
+"\n");
+
+#define _ELEMENTTREE_XMLPARSER_FLUSH_METHODDEF    \
+    {"flush", (PyCFunction)_elementtree_XMLParser_flush, METH_NOARGS, _elementtree_XMLParser_flush__doc__},
+
+static PyObject *
+_elementtree_XMLParser_flush_impl(XMLParserObject *self);
+
+static PyObject *
+_elementtree_XMLParser_flush(XMLParserObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return _elementtree_XMLParser_flush_impl(self);
+}
+
 PyDoc_STRVAR(_elementtree_XMLParser_feed__doc__,
 "feed($self, data, /)\n"
 "--\n"
@@ -749,4 +766,4 @@ _elementtree_XMLParser__setevents(XMLParserObject *self, PyObject *const *args, 
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=c5a85a88bbb5cc06 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=437833d15831087d input=a9049054013a1b77]*/

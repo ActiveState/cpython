@@ -566,7 +566,10 @@ class RawConfigParser(MutableMapping):
         \]                                 # ]
         """
     _OPT_TMPL = r"""
-        (?P<option>.*?)                    # very permissive!
+        (?P<option>                        # very permissive!
+            (?:(?!{delim})\S)*             # non-delimiter non-whitespace
+            (?:(?:(?!{delim})\s)+          # optionally more
+             (?:(?!{delim})\S)+)*)         #   space-separated words
         \s*(?P<vi>{delim})\s*              # any number of space/tab,
                                            # followed by any of the
                                            # allowed delimiters,
@@ -574,7 +577,10 @@ class RawConfigParser(MutableMapping):
         (?P<value>.*)$                     # everything up to eol
         """
     _OPT_NV_TMPL = r"""
-        (?P<option>.*?)                    # very permissive!
+        (?P<option>                        # very permissive!
+            (?:(?!{delim})\S)*             # non-delimiter non-whitespace
+            (?:(?:(?!{delim})\s)+          # optionally more
+             (?:(?!{delim})\S)+)*)         #   space-separated words
         \s*(?:                             # any number of space/tab,
         (?P<vi>{delim})\s*                 # optionally followed by
                                            # any of the allowed
@@ -924,7 +930,9 @@ class RawConfigParser(MutableMapping):
             value = self._interpolation.before_write(self, section_name, key,
                                                      value)
             if value is not None or not self._allow_no_value:
-                value = delimiter + str(value).replace('\n', '\n\t')
+                # Convert all possible line-endings into '\n\t'
+                value = (delimiter + str(value).replace('\r\n', '\n')
+                         .replace('\r', '\n').replace('\n', '\n\t'))
             else:
                 value = ""
             fp.write("{}{}\n".format(key, value))

@@ -410,6 +410,27 @@ class TestMessageAPI(TestEmailBase):
             "Content-Type: foo; bar*0=\"baz\\\"foobar\"; bar*1=\"\\\"baz\"")
         self.assertEqual(msg.get_param('bar'), 'baz"foobar"baz')
 
+    def test_get_param_linear_complexity(self):
+        # Ensure that email.message._parseparam() is fast.
+        # See https://github.com/python/cpython/issues/136063.
+        N = 100_000
+        for s, r in [
+            ("", ""),
+            ("foo=bar", "foo=bar"),
+            (" FOO = bar    ", "foo=bar"),
+        ]:
+            with self.subTest(s=s, r=r, N=N):
+                src = f'{s};' * (N - 1) + s
+                res = email.message._parseparam(src)
+                self.assertEqual(len(res), N)
+                self.assertEqual(len(set(res)), 1)
+                self.assertEqual(res[0], r)
+
+        # This will be considered as a single parameter.
+        malformed = 's="' + ';' * (N - 1)
+        res = email.message._parseparam(malformed)
+        self.assertEqual(res, [malformed])
+
     def test_field_containment(self):
         msg = email.message_from_string('Header: exists')
         self.assertIn('header', msg)
@@ -3318,6 +3339,23 @@ Foo
 
         # Test email.utils.supports_strict_parsing attribute
         self.assertEqual(email.utils.supports_strict_parsing, True)
+
+    def test_parseaddr_unicode(self):
+        # CVE-2023-27043 Unicode regression guard. The 2.7 refactor had to
+        # accept both str and unicode at the parseaddr() boundary; in Python 3
+        # str is already Unicode, so this test just pins that strict-mode
+        # parsing still accepts valid non-ASCII input and agrees with the
+        # non-strict path.
+        for addr in (
+            'user@example.com',
+            'Test User <user@example.com>',
+            '"Test User" <user@example.com>',
+            '"Sürname, Firstname" <to@example.com>',
+        ):
+            with self.subTest(addr=addr):
+                strict = utils.parseaddr(addr, strict=True)
+                self.assertNotEqual(strict, ('', ''))
+                self.assertEqual(strict, utils.parseaddr(addr, strict=False))
 
     def test_getaddresses_nasty(self):
         for addresses, expected in (
