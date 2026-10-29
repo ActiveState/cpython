@@ -5918,19 +5918,22 @@ PyUnicode_AsUTF16String(PyObject *unicode)
 static _PyUnicode_Name_CAPI *ucnhash_CAPI = NULL;
 
 PyObject *
-_PyUnicode_DecodeUnicodeEscape(const char *s,
+_PyUnicode_DecodeUnicodeEscape2(const char *s,
                                Py_ssize_t size,
                                const char *errors,
-                               const char **first_invalid_escape)
+                               int *first_invalid_escape_char,
+                               const char **first_invalid_escape_ptr)
 {
     const char *starts = s;
+    const char *initial_starts = starts;
     _PyUnicodeWriter writer;
     const char *end;
     PyObject *errorHandler = NULL;
     PyObject *exc = NULL;
 
     // so we can remember if we've seen an invalid escape char or not
-    *first_invalid_escape = NULL;
+    *first_invalid_escape_char = -1;
+    *first_invalid_escape_ptr = NULL;
 
     if (size == 0) {
         _Py_RETURN_UNICODE_EMPTY();
@@ -6106,9 +6109,12 @@ _PyUnicode_DecodeUnicodeEscape(const char *s,
             goto error;
 
         default:
-            if (*first_invalid_escape == NULL) {
-                *first_invalid_escape = s-1; /* Back up one char, since we've
-                                                already incremented s. */
+            if (*first_invalid_escape_char == -1) {
+                *first_invalid_escape_char = c;
+                if (starts == initial_starts) {
+                    /* Back up one char, since we've already incremented s. */
+                    *first_invalid_escape_ptr = s - 1;
+                }
             }
             WRITE_ASCII_CHAR('\\');
             WRITE_CHAR(c);
@@ -6142,20 +6148,36 @@ _PyUnicode_DecodeUnicodeEscape(const char *s,
     return NULL;
 }
 
+// Export for binary compatibility.
+PyObject *
+_PyUnicode_DecodeUnicodeEscape(const char *s,
+                               Py_ssize_t size,
+                               const char *errors,
+                               const char **first_invalid_escape)
+{
+    int first_invalid_escape_char;
+    return _PyUnicode_DecodeUnicodeEscape2(
+            s, size, errors,
+            &first_invalid_escape_char,
+            first_invalid_escape);
+}
+
 PyObject *
 PyUnicode_DecodeUnicodeEscape(const char *s,
                               Py_ssize_t size,
                               const char *errors)
 {
-    const char *first_invalid_escape;
-    PyObject *result = _PyUnicode_DecodeUnicodeEscape(s, size, errors,
-                                                      &first_invalid_escape);
+    int first_invalid_escape_char;
+    const char *first_invalid_escape_ptr;
+    PyObject *result = _PyUnicode_DecodeUnicodeEscape2(s, size, errors,
+                                                      &first_invalid_escape_char,
+                                                      &first_invalid_escape_ptr);
     if (result == NULL)
         return NULL;
-    if (first_invalid_escape != NULL) {
+    if (first_invalid_escape_char != -1) {
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
                              "invalid escape sequence '\\%c'",
-                             (unsigned char)*first_invalid_escape) < 0) {
+                             first_invalid_escape_char) < 0) {
             Py_DECREF(result);
             return NULL;
         }

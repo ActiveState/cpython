@@ -1501,6 +1501,17 @@ PyAPI_FUNC(PyObject*) PyUnicode_DecodeUnicodeEscape(
 #ifndef Py_LIMITED_API
 /* Helper for PyUnicode_DecodeUnicodeEscape that detects invalid escape
    chars. */
+PyAPI_FUNC(PyObject*) _PyUnicode_DecodeUnicodeEscape2(
+    const char *string,     /* Unicode-Escape encoded string */
+    Py_ssize_t length,      /* size of string */
+    const char *errors,     /* error handling */
+    int *first_invalid_escape_char, /* on return, if not -1, contain the first
+                                       invalid escaped char in string. */
+    const char **first_invalid_escape_ptr); /* on return, if not NULL, may
+                                        point to the first invalid escaped
+                                        char in string.
+                                        May be NULL if errors is not NULL. */
+// Export for binary compatibility.
 PyAPI_FUNC(PyObject*) _PyUnicode_DecodeUnicodeEscape(
         const char *string,     /* Unicode-Escape encoded string */
         Py_ssize_t length,      /* size of string */
