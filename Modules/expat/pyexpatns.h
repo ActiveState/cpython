@@ -90,6 +90,8 @@
 #define XmlPrologStateInit              PyExpat_XmlPrologStateInit
 #define XmlPrologStateInitExternalEntity    PyExpat_XmlPrologStateInitExternalEntity
 #define XML_ResumeParser                PyExpat_XML_ResumeParser
+#define XML_SetAllocTrackerActivationThreshold PyExpat_XML_SetAllocTrackerActivationThreshold
+#define XML_SetAllocTrackerMaximumAmplification PyExpat_XML_SetAllocTrackerMaximumAmplification
 #define XML_SetAttlistDeclHandler       PyExpat_XML_SetAttlistDeclHandler
 #define XML_SetBase                     PyExpat_XML_SetBase
 #define XML_SetBillionLaughsAttackProtectionActivationThreshold PyExpat_XML_SetBillionLaughsAttackProtectionActivationThreshold
@@ -111,6 +113,7 @@
 #define XML_SetExternalEntityRefHandler PyExpat_XML_SetExternalEntityRefHandler
 #define XML_SetExternalEntityRefHandlerArg  PyExpat_XML_SetExternalEntityRefHandlerArg
 #define XML_SetHashSalt                 PyExpat_XML_SetHashSalt
+#define XML_SetHashSalt16Bytes          PyExpat_XML_SetHashSalt16Bytes
 #define XML_SetNamespaceDeclHandler     PyExpat_XML_SetNamespaceDeclHandler
 #define XML_SetNotationDeclHandler      PyExpat_XML_SetNotationDeclHandler
 #define XML_SetNotStandaloneHandler     PyExpat_XML_SetNotStandaloneHandler
