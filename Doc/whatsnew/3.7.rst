@@ -2800,6 +2800,10 @@ tarfile and shutil
   CVE 2025-8194), GNU long names no longer change a member's type
   (:gh:`141707`), and reading a stream past its end terminates
   (:gh:`151981`).
+* Opening an archive no longer pre-allocates the size a GNU long name/link
+  or pax extended header claims; the header is read in bounded chunks, so a
+  small crafted archive cannot force a multi-gigabyte allocation
+  (:gh:`151497`).
 * Extracting a symlink over an existing file replaces it instead of falling
   back to copying the link target (bpo-12800).
 * :func:`os.path.realpath` gains a *strict* parameter, including the new
