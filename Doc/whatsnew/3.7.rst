@@ -2730,3 +2730,203 @@ CVE-2024-9287
 
 In CPython's venv module, improper quoting of path names during virtual environment creation allows for command injection into activation scripts (e.g., source venv/bin/activate). This vulnerability enables attackers to execute arbitrary commands when such a virtual environment is activated. Virtual environments not created by an attacker or not activated before use are unaffected.
 starwindsoftware.com+2
+
+Notable changes in 3.7.17.8
+===========================
+
+This is an ActiveState security release of the 3.7 line, which is past its
+upstream end of life.  It carries the security fixes that upstream released
+for Python 3.8 through 3.11 since 3.7.17 and that apply to 3.7, and that
+3.7.17.7 did not already have.  Most are ports of the commits on the
+ActiveState 3.9.25.x line.  The full list of changes is in the changelog;
+the notable ones are below.
+
+ssl
+---
+
+* The :mod:`ssl` module now rejects TLS certificate chains that contain one
+  of a set of compromised eMudhra intermediate CA certificates.  The affected
+  certificates are identified by their public key, so cross-signed copies that
+  reuse the same key are blocked as well.  It is a defense-in-depth backstop
+  that applies even when an application supplies its own root CA bundle, and
+  regardless of whether the platform trust store has removed trust.
+  (Contributed by Christian Heimes in :gh:`160040` for CVE 2026-115557.)
+* An empty list is no longer accepted by
+  :meth:`~ssl.SSLContext.set_npn_protocols` (:gh:`121227`, CVE 2024-5642).
+* Use-after-free fixes for a server-side context with an SNI callback
+  (:gh:`156293`, CVE 2026-19445) and when ``SSL_new()`` fails (:gh:`144833`).
+* :meth:`~ssl.SSLContext.wrap_bio` validates its arguments like
+  :meth:`~ssl.SSLContext.wrap_socket` (:gh:`156793`, CVE 2026-19553).
+
+ensurepip
+---------
+
+* The bundled ``pip`` is upgraded from 23.0.1 to 24.0.post3, the ActiveState
+  security release of pip 24.0 (the last pip that supports Python 3.7).  pip
+  loads its own vendored ``certifi`` CA bundle in addition to the system trust
+  store; the bundle in 24.0.post3 (certifi 2026.10.23) drops the emSign ECC
+  Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 roots of the
+  compromised eMudhra/emSign CA, leaving emSign Root CA - G1 as the only
+  emSign root.  The release also fixes CVE-2023-5752, CVE-2025-8869,
+  CVE-2026-1703, CVE-2026-3219, CVE-2026-6357, CVE-2026-8643 and
+  CVE-2026-13346.
+* The bundled ``setuptools`` is upgraded from 47.1.0 to 68.0.0.2, the
+  ActiveState security release of setuptools 68.0.0 (the last setuptools that
+  supports Python 3.7), fixing CVE-2022-40897, CVE-2024-6345 and
+  CVE-2025-47273.  setuptools 68 replaces :mod:`distutils` with its own copy
+  when it is imported; a process that imports ``pip`` before ``setuptools``
+  can fail with an ``AssertionError`` about ``distutils/core.py``.  Import
+  ``setuptools`` first, or set ``SETUPTOOLS_USE_DISTUTILS=stdlib``.
+
+tarfile and shutil
+------------------
+
+* The ``data`` and ``tar`` extraction filters normalize link targets and
+  reject the escapes reported in CVE 2024-12718, CVE 2025-4138,
+  CVE 2025-4330, CVE 2025-4435 and CVE 2025-4517 (:gh:`135034`), plus hard
+  links to symbolic links (:gh:`157190`), symlinks created through the
+  hard-link extraction fallback (:gh:`151558`), members whose name leaves the
+  destination and comes back (:gh:`155999`), link targets that differ from
+  the value written to disk (:gh:`149486`), links that replace the destination
+  directory itself (:gh:`160097`) and symlinks relative to their own directory
+  (:gh:`107845`).
+* :meth:`~tarfile.TarFile.extract` applies the filter to link fallbacks and
+  honors a ``None`` result from it (:gh:`151987`, :gh:`157265`).
+* Archives with negative member offsets are rejected (:gh:`130577`,
+  CVE 2025-8194), GNU long names no longer change a member's type
+  (:gh:`141707`), and reading a stream past its end terminates
+  (:gh:`151981`).
+* Extracting a symlink over an existing file replaces it instead of falling
+  back to copying the link target (bpo-12800).
+* :func:`os.path.realpath` gains a *strict* parameter, including the new
+  :data:`os.path.ALLOW_MISSING` value used by the filters.
+* On Windows, :func:`os.path.realpath` now resolves symbolic links and
+  junctions, as it does from Python 3.8 on (bpo-9949).  Before this
+  release it returned the unresolved absolute path, so the extraction
+  filters could not see symlinks pointing outside the destination; that
+  bypass also affected 3.7.17.7.  This is a behavior change for any
+  caller of :func:`~os.path.realpath` on Windows.
+* :func:`shutil.unpack_archive` no longer writes outside the destination for
+  some ZIP files on Windows (:gh:`146581`).
+
+tempfile
+--------
+
+* Cleanup of :class:`tempfile.TemporaryDirectory` no longer follows symlinks
+  out of the directory (:gh:`91133`, CVE 2023-6597), no longer resolves paths
+  again when it recovers from a permission error (:gh:`157579`,
+  CVE 2026-12345), and reports the original :exc:`PermissionError` on
+  Windows (bpo-43153, :gh:`79325`).
+* On Windows, ``os.mkdir(path, 0o700)`` creates a directory that only the
+  owner, SYSTEM and Administrators can access, which makes
+  :func:`tempfile.mkdtemp` private (:gh:`118486`, CVE 2024-4030).
+
+http, email, urllib and wsgiref
+-------------------------------
+
+* :func:`urllib.parse.urlsplit` rejects bracketed hosts that are not IPv6 or
+  IPvFuture addresses and square brackets elsewhere in the host
+  (:gh:`103848`, :gh:`105704`; CVE 2024-11168, CVE 2025-0938).
+* Control characters are rejected in :mod:`http.cookies` morsels
+  (:gh:`143919`, :gh:`145599`), ``data:`` URL media types (:gh:`143925`),
+  :mod:`wsgiref` headers and status lines (:gh:`143916`, :gh:`144370`), HTTP
+  tunnel headers (:gh:`146211`), :mod:`imaplib` command arguments
+  (:gh:`143921`) and :mod:`poplib` commands (:gh:`143923`).
+* :mod:`http.client` bounds memory use for large responses (:gh:`119451`),
+  limits trailer lines and interim responses (:gh:`150743`) and only accepts a
+  ``Content-Length`` and chunk sizes that match the HTTP grammar
+  (:gh:`150751`); :mod:`http.server` gets the same bound for CGI
+  (:gh:`119452`).
+* :class:`~urllib.request.HTTPPasswordMgr` credentials are scoped by URL
+  scheme (:gh:`155694`).
+* :mod:`email` encodes newlines in headers and refuses to write unsafely
+  folded headers (:gh:`121650`, :gh:`144125`), keeps list separators plain
+  when folding address lists (:gh:`80222`, :gh:`121284`, CVE 2025-1795) and
+  folds comments correctly (:gh:`143935`, :gh:`87720`).
+* :class:`http.cookiejar.DefaultCookiePolicy` checks the domain of cookies
+  with a negative ``Version`` (:gh:`160300`).
+* The pure-Python :func:`socket.socketpair` fallback authenticates the
+  connection (:gh:`122133`, CVE 2024-3219).
+
+ipaddress
+---------
+
+* Leading zeros in IPv4 address octets are rejected, as in Python 3.8.12 and
+  later, because they are ambiguous with octal notation (bpo-36384,
+  CVE 2021-29921).  This is a behavior change: ``"010.0.0.1"`` now raises
+  :exc:`ValueError`.
+* IPv6 address parsing is bounded (:gh:`128840`), and the properties of
+  IPv4-mapped IPv6 addresses match the IPv4 address (:gh:`122792`).
+
+XML and HTML
+------------
+
+* The bundled libexpat is updated from 2.6.4 to 2.9.0.
+* :mod:`xml.parsers.expat` exposes the reparse deferral API added in libexpat
+  2.6.0 (:meth:`!SetReparseDeferralEnabled`, :meth:`!GetReparseDeferralEnabled`
+  and :meth:`xml.etree.ElementTree.XMLPullParser.flush`), seeds expat's hash
+  with 16 bytes of entropy when available (:gh:`149018`), keeps parent
+  parsers alive while subparsers use them (:gh:`139400`) and no longer
+  crashes on deeply nested content models (:gh:`145986`).
+* :class:`html.parser.HTMLParser` follows HTML5 for comments, tags, CDATA
+  sections and the ``script``, ``style``, ``textarea`` and ``title`` elements,
+  and loses its quadratic cases (:gh:`135661`, :gh:`102555`, :gh:`118350`,
+  :gh:`135462`, :gh:`153030`).
+* Quadratic behavior is removed from :mod:`xml.dom.minidom` (:gh:`142145`)
+  and :mod:`xml.etree.ElementTree` path predicates (:gh:`152674`).
+
+Denial-of-service and memory-safety fixes
+-----------------------------------------
+
+* Quadratic or exponential time is removed from :mod:`configparser`
+  (:gh:`146333`, :gh:`156353`), :class:`csv.Sniffer` (:gh:`109638`,
+  :gh:`98820`), :func:`unicodedata.normalize` (:gh:`149079`),
+  :func:`os.path.expandvars` (:gh:`136065`), the :mod:`email` parameter parser
+  (:gh:`136063`), :mod:`imaplib` (:gh:`119511`) and :mod:`plistlib`
+  (:gh:`119342`).
+* :mod:`zipfile` rejects "quoted-overlap" zip bombs (:gh:`109858`), checks the
+  ZIP64 end of central directory record (:gh:`139700`) and bounds
+  decompression per read for bzip2 and LZMA members (:gh:`156002`).
+* Use-after-free and out-of-bounds fixes in the ``unicode-escape`` decoder
+  (:gh:`133767`, CVE 2025-4516), :mod:`bz2` and :mod:`lzma` (:gh:`148395`,
+  :gh:`150599`), the ``iso2022_jp_3`` and ``iso2022_jp_2004`` codecs
+  (:gh:`101180`) and :class:`float` / :class:`complex` formatting
+  (:gh:`158446`).
+
+Other
+-----
+
+* :mod:`site` skips hidden ``.pth`` files (:gh:`113659`).
+* :mod:`multiprocessing` no longer uses Linux abstract sockets by default
+  (:gh:`97514`, CVE 2022-42919).
+* :mod:`webbrowser` rejects URLs starting with a dash (:gh:`143930`,
+  :gh:`148169`) and runs ``osascript`` by absolute path (:gh:`137586`).
+* :mod:`mimetypes` no longer reads :data:`mimetypes.knownfiles` by default on
+  Windows (:gh:`159428`).
+* :mod:`configparser` normalizes line endings in multi-line values
+  (:gh:`143927`).
+* :mod:`stringprep` and the ``idna`` codec stop using Unicode attributes
+  beyond :rfc:`3454` (:gh:`155292`).
+* ``ftplib.ftpcp`` no longer trusts the IPv4 address in a PASV reply
+  (:gh:`87451`, the CVE-2021-4189 fix).
+* ``ssl.SSLContext.load_verify_locations(cadata=...)`` detects the end of DER
+  data with OpenSSL 3 (:gh:`100372`).
+
+Build
+-----
+
+* Windows release builds link with ``/OPT:REF,NOICF`` (bpo-42825).  With
+  identical COMDAT folding, newer MSVC linkers merge ``wrap_binaryfunc`` and
+  ``wrap_binaryfunc_l`` in ``Objects/typeobject.c``, and ``subclass + x``
+  then returns ``NotImplemented`` instead of raising :exc:`TypeError` for
+  subclasses of built-in types.
+
+* On Windows, the core links the zlib import library as ``z.lib`` when the
+  zlib directory provides one (the ActiveState ``shared/zlib`` 1.3.2 and
+  later), and as ``zlib.lib`` otherwise.
+
+Not included, because they do not apply to 3.7: fixes for code that only
+exists in later versions (``zipfile.Path``, ``SourcelessFileLoader`` audit
+hooks and :func:`io.open_code`, :mod:`asyncio` UDP and introspection APIs,
+``getpath.py``), and the behavior changes upstream kept to 3.13 and later
+(:mod:`base64` decoding, ``Morsel.js_output``).
