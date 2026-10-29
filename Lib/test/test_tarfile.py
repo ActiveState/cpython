@@ -2843,9 +2843,17 @@ class NoneInfoExtractTests(ReadTest):
         shutil.rmtree(cls.control_dir)
 
     def check_files_present(self, directory):
-        got_paths = set(
-            p.relative_to(directory)
-            for p in pathlib.Path(directory).glob('**/*'))
+        try:
+            got_paths = set(
+                p.relative_to(directory)
+                for p in pathlib.Path(directory).glob('**/*'))
+        except OSError as err:
+            if getattr(err, 'winerror', None) == 123:
+                # 123 is Windows error ERROR_INVALID_NAME
+                # glob() fails this way when symlink targets are too long
+                # Fixed in 3.8+: https://github.com/python/cpython/issues/79487
+                raise unittest.SkipTest('Path.glob failed')
+            raise
         if self.extraction_filter == 'data':
             # The 'data' filter is expected to reject special files
             for path in 'ustar/fifotype', 'ustar/blktype', 'ustar/chrtype':
