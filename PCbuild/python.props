@@ -81,6 +81,9 @@
     <zlibDir Condition="!HasTrailingSlash($(zlibDir))">$(zlibDir)\</zlibDir>
     <zlibIncludeDir>$(zlibDir)include</zlibIncludeDir>
     <zlibLibDir>$(zlibDir)lib</zlibLibDir>
+    <!-- Platform shared/zlib (1.3.2 and later) installs the import library as z.lib -->
+    <zlibLibName Condition="$(zlibLibName) == '' and Exists('$(zlibLibDir)\z.lib')">z.lib</zlibLibName>
+    <zlibLibName Condition="$(zlibLibName) == ''">zlib.lib</zlibLibName>
   </PropertyGroup>
 
   <PropertyGroup>

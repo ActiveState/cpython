@@ -73,7 +73,7 @@
       <PreprocessorDefinitions>_USRDLL;Py_BUILD_CORE;Py_BUILD_CORE_BUILTIN;Py_ENABLE_SHARED;_Py_HAVE_ZLIB;MS_DLL_ID="$(SysWinVer)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
      </ClCompile>
      <Link>
-      <AdditionalDependencies>version.lib;shlwapi.lib;ws2_32.lib;pathcch.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>version.lib;shlwapi.lib;ws2_32.lib;pathcch.lib;$(zlibLibName);%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='PGInstrument|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
       <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='PGUpdate|x64'">$(OutDir);%(AdditionalLibraryDirectories);$(zlibLibDir)</AdditionalLibraryDirectories>
