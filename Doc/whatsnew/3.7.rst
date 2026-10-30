@@ -2971,8 +2971,10 @@ Behavior changes from OpenSSL 3
 These come from OpenSSL 3 itself and match the ActiveState 3.9 and 3.10
 lines:
 
-* At OpenSSL's default security level, TLS 1.0 and 1.1, SHA-1 signatures
-  and RSA keys shorter than 2048 bits are refused.  Connecting to a server
+* At OpenSSL's default security level, TLS 1.0 and 1.1 and SHA-1
+  signatures are refused, and so are RSA keys shorter than 2048 bits on
+  OpenSSL 3.2 and later (the Platform builds with 3.5), or shorter than 1024
+  bits on 3.0 and 3.1, whose default level is lower.  Connecting to a server
   that needs them fails until the context lowers the level, for example with
   ``ctx.set_ciphers("DEFAULT:@SECLEVEL=0")``.
 * Algorithms that OpenSSL 3 moved to its legacy provider are no longer
