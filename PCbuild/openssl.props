@@ -10,15 +10,27 @@
     </Link>
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <_DLLSuffix>-1_1</_DLLSuffix>
+    <!-- The OpenSSL DLL names carry the version: libssl-1_1.dll for 1.1,
+         libssl-3.dll for 3.x.  The Platform build sets SSL_MAJOR_VERSION and
+         SSL_MINOR_VERSION from the OpenSSL in use; without them, look for
+         3.x DLLs and otherwise assume 1.1. -->
+    <SSLMajorVersion>$(SSL_MAJOR_VERSION)</SSLMajorVersion>
+    <SSLMajorVersion Condition="$(SSLMajorVersion) == '' and (Exists('$(opensslBinDir)\libssl-3.dll') or Exists('$(opensslBinDir)\libssl-3-x64.dll'))">3</SSLMajorVersion>
+    <SSLMajorVersion Condition="$(SSLMajorVersion) == ''">1</SSLMajorVersion>
+    <SSLMinorVersion>$(SSL_MINOR_VERSION)</SSLMinorVersion>
+    <SSLMinorVersion Condition="$(SSLMinorVersion) == ''">1</SSLMinorVersion>
+    <_DLLSuffix>-$(SSLMajorVersion)_$(SSLMinorVersion)</_DLLSuffix>
+    <_DLLSuffix Condition="$(SSLMajorVersion) != '1'">-$(SSLMajorVersion)</_DLLSuffix>
+    <!-- Some OpenSSL builds add an architecture suffix to the x64 DLLs. -->
+    <_DLLSuffix Condition="$(Platform) == 'x64' and Exists('$(opensslBinDir)\libssl$(_DLLSuffix)-x64.dll')">$(_DLLSuffix)-x64</_DLLSuffix>
     <_DLLSuffix Condition="$(Platform) == 'ARM'">$(_DLLSuffix)-arm</_DLLSuffix>
     <_DLLSuffix Condition="$(Platform) == 'ARM64'">$(_DLLSuffix)-arm64</_DLLSuffix>
   </PropertyGroup>
   <ItemGroup>
-    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).pdb" />
-    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).pdb" />
+    <_SSLDLL Include="$(opensslBinDir)\libcrypto$(_DLLSuffix).dll" />
+    <_SSLDLL Include="$(opensslBinDir)\libcrypto$(_DLLSuffix).pdb" />
+    <_SSLDLL Include="$(opensslBinDir)\libssl$(_DLLSuffix).dll" />
+    <_SSLDLL Include="$(opensslBinDir)\libssl$(_DLLSuffix).pdb" />
   </ItemGroup>
   <Target Name="_CopySSLDLL" Inputs="@(_SSLDLL)" Outputs="@(_SSLDLL->'$(OutDir)%(Filename)%(Extension)')" AfterTargets="Build">
     <Copy SourceFiles="@(_SSLDLL)" DestinationFolder="$(OutDir)" />
