@@ -884,7 +884,7 @@ Constants
 
    This option is only available with OpenSSL 3.0.0 and later.
 
-   .. versionadded:: 3.10
+   .. versionadded:: 3.7.17.9
 
 .. data:: HAS_ALPN
 

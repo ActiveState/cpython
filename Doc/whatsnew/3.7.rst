@@ -2941,3 +2941,54 @@ exists in later versions (``zipfile.Path``, ``SourcelessFileLoader`` audit
 hooks and :func:`io.open_code`, :mod:`asyncio` UDP and introspection APIs,
 ``getpath.py``), and the behavior changes upstream kept to 3.13 and later
 (:mod:`base64` decoding, ``Morsel.js_output``).
+
+Notable changes in 3.7.17.9
+===========================
+
+This ActiveState release moves the 3.7 line from OpenSSL 1.1.1, which
+reached its end of life in September 2023, to OpenSSL 3.  The ActiveState
+3.9 and 3.10 lines already build against OpenSSL 3.  The source still
+builds against OpenSSL 1.1.1.
+
+ssl
+---
+
+* With OpenSSL 3, a peer that closes the connection without sending a TLS
+  ``close_notify`` alert ends the stream like a plain end of file, as it does
+  with OpenSSL 1.1.1, instead of raising
+  ``SSLError: unexpected eof while reading``.  :data:`ssl.OP_IGNORE_UNEXPECTED_EOF`
+  is set by default.  (:issue:`43794`)
+* The error codes table is regenerated per OpenSSL version, so
+  :class:`ssl.SSLError` reports the right library and reason with OpenSSL 3
+  instead of misnamed ones such as ``KRB5_S_TKT_NYV``.  (:issue:`39953`,
+  :issue:`40266`, :issue:`43788`)
+* :meth:`~ssl.SSLContext.load_cert_chain` no longer calls the password
+  callback a second time after it fails.  (:issue:`43789`)
+
+Behavior changes from OpenSSL 3
+-------------------------------
+
+These come from OpenSSL 3 itself and match the ActiveState 3.9 and 3.10
+lines:
+
+* At OpenSSL's default security level, TLS 1.0 and 1.1, SHA-1 signatures
+  and RSA keys shorter than 2048 bits are refused.  Connecting to a server
+  that needs them fails until the context lowers the level, for example with
+  ``ctx.set_ciphers("DEFAULT:@SECLEVEL=0")``.
+* Algorithms that OpenSSL 3 moved to its legacy provider are no longer
+  available unless that provider is loaded through an OpenSSL
+  configuration file.  ``hashlib.new("md4")`` and ``hashlib.new("whirlpool")``
+  raise :exc:`ValueError`, and they are not listed in
+  :data:`hashlib.algorithms_available`.  MD4 is used for NTLM
+  authentication.
+* Extension modules that link OpenSSL, such as ``cryptography``,
+  ``pyOpenSSL`` and ``psycopg2``, must be built against OpenSSL 3.  Older
+  releases that do not support OpenSSL 3 (for example ``cryptography``
+  before 35.0) no longer build.
+
+Build
+-----
+
+* On Windows, the build copies whichever ``libcrypto-*`` and ``libssl-*``
+  DLLs the OpenSSL in use provides, from its ``bin`` directory when it has
+  one.  OpenSSL 3 names them ``libssl-3.dll`` or ``libssl-3-x64.dll``.
