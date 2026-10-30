@@ -9,16 +9,14 @@
       <AdditionalDependencies>ws2_32.lib;libcrypto.lib;libssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <PropertyGroup>
-    <_DLLSuffix>-1_1</_DLLSuffix>
-    <_DLLSuffix Condition="$(Platform) == 'ARM'">$(_DLLSuffix)-arm</_DLLSuffix>
-    <_DLLSuffix Condition="$(Platform) == 'ARM64'">$(_DLLSuffix)-arm64</_DLLSuffix>
-  </PropertyGroup>
   <ItemGroup>
-    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslLibDir)\libcrypto$(_DLLSuffix).pdb" />
-    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).dll" />
-    <_SSLDLL Include="$(opensslLibDir)\libssl$(_DLLSuffix).pdb" />
+    <!-- The DLL names depend on the OpenSSL version and how it was built
+         (libssl-1_1.dll, libssl-3.dll, libssl-3-x64.dll), so copy whichever
+         the OpenSSL in use provides rather than guessing a suffix. -->
+    <_SSLDLL Include="$(opensslBinDir)\libcrypto-*.dll" />
+    <_SSLDLL Include="$(opensslBinDir)\libcrypto-*.pdb" />
+    <_SSLDLL Include="$(opensslBinDir)\libssl-*.dll" />
+    <_SSLDLL Include="$(opensslBinDir)\libssl-*.pdb" />
   </ItemGroup>
   <Target Name="_CopySSLDLL" Inputs="@(_SSLDLL)" Outputs="@(_SSLDLL->'$(OutDir)%(Filename)%(Extension)')" AfterTargets="Build">
     <Copy SourceFiles="@(_SSLDLL)" DestinationFolder="$(OutDir)" />

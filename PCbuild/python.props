@@ -75,6 +75,9 @@
     <opensslDir Condition="!HasTrailingSlash($(opensslDir))">$(opensslDir)\</opensslDir>
     <opensslIncludeDir Condition="$(opensslIncludeDir) == ''">$(opensslDir)include</opensslIncludeDir>
     <opensslLibDir Condition="$(opensslLibDir) == ''">$(opensslDir)lib</opensslLibDir>
+    <!-- OpenSSL 3 installs its DLLs in bin\, 1.1 builds and the externals keep them with the import libraries. -->
+    <opensslBinDir Condition="$(opensslBinDir) == '' and Exists('$(opensslDir)bin')">$(opensslDir)bin</opensslBinDir>
+    <opensslBinDir Condition="$(opensslBinDir) == ''">$(opensslLibDir)</opensslBinDir>
     <nasmDir Condition="$(nasmDir) == ''">$(ExternalsDir)\nasm-2.11.06\</nasmDir>
     <zlibDir>$(ZLIB_DIR)</zlibDir>
     <zlibDir Condition="$(zlibDir) == ''">$(ExternalsDir)\zlib-1.2.13\</zlibDir>
