@@ -2664,7 +2664,7 @@ Notable security feature in 3.7.17.7
   the CVE-2023-27043 fix.)
 
 Notable changes in 3.7.17.4
-=========================
+===========================
 
 tarfile
 -------
@@ -2691,7 +2691,7 @@ cert-store
 * Fixed CVE-2024-0397 Fix locking in ``cert_store_stats`` and ``get_ca_certs``
 
 Notable changes in 3.7.17.5
-=========================
+===========================
 
 pyexpat / libexpat
 ------------------
@@ -2699,7 +2699,7 @@ pyexpat / libexpat
 * Upgrade bundled libexpat to 2.6.3 to fix CVE-2024-28757, CVE-2024-45490, CVE-2024-45491 and CVE-2024-45492.
 
 Notable changes in 3.7.17.6
-=========================
+===========================
 
 pyexpat / libexpat
 ------------------
@@ -2707,29 +2707,25 @@ pyexpat / libexpat
 * Upgrade bundled libexpat to 2.6.4 to fix CVE-2024-50602.
 
 Notable changes in 3.7.17.7
-=========================
+===========================
 
 Fixes for these CVEs:
 
 CVE-2023-27043
 
 A vulnerability in Python's email module (up to version 3.11.3) causes incorrect parsing of email addresses containing special characters. This flaw misidentifies parts of RFC2822 headers, potentially allowing attackers to bypass domain-based email verification mechanisms in applications that restrict access to specific domains.
-NVD
 
 CVE-2024-6232
 
 The tarfile module in CPython is susceptible to a Regular Expression Denial of Service (ReDoS) vulnerability due to inefficient regular expressions used during header parsing. Specifically crafted tar archives can trigger excessive backtracking, leading to significant CPU resource consumption and potential denial of service.
-NVD+5SUSE+5linux.oracle.com+5
 
 CVE-2024-7592
 
 A vulnerability in Python's http.cookies module arises when parsing cookie values containing backslashes within quoted strings. The parser employs an algorithm with quadratic complexity, which can be exploited to cause excessive CPU usage, resulting in a denial of service.
-NVD+1Ubuntu+1
 
 CVE-2024-9287
 
 In CPython's venv module, improper quoting of path names during virtual environment creation allows for command injection into activation scripts (e.g., source venv/bin/activate). This vulnerability enables attackers to execute arbitrary commands when such a virtual environment is activated. Virtual environments not created by an attacker or not activated before use are unaffected.
-starwindsoftware.com+2
 
 Notable changes in 3.7.17.8
 ===========================
