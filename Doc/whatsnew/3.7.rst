@@ -2994,3 +2994,15 @@ Build
 * On Windows, the build copies the OpenSSL DLLs that match the OpenSSL
   version in use (``libssl-3.dll`` for 3.x, ``libssl-1_1.dll`` for 1.1),
   from its ``bin`` directory when it has one.
+
+Notable changes in 3.7.17.10
+============================
+
+ensurepip
+---------
+
+* The bundled ``pip`` is upgraded from 24.0.post4 to 24.0.post5, the
+  ActiveState security release of pip 24.0 that upgrades its vendored
+  ``idna`` from 3.4 to 3.7.  This fixes CVE-2024-3651: crafted host names
+  made ``idna.encode()`` take quadratic time.  The rest of pip is unchanged
+  from 24.0.post4.
