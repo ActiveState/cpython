@@ -1,0 +1,3 @@
+Upgrade the bundled pip in :mod:`ensurepip` from 24.0.post4 to 24.0.post5.
+Its vendored idna is upgraded from 3.4 to 3.7, which fixes CVE-2024-3651
+(quadratic time in ``idna.encode()`` on crafted labels).
