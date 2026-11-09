@@ -2552,3 +2552,28 @@ Build Changes
   ``XML_SetHashSalt16Bytes``, which Expat 2.9.0 added, so every function of
   the bundled Expat carries the ``PyExpat_`` prefix and cannot clash with
   another copy of Expat loaded in the same process.
+
+
+Notable changes in 3.10.22.4
+============================
+
+This is an ActiveState release of the 3.10 line, on top of 3.10.22.3.
+
+Version reporting
+-----------------
+
+* The version string is back to upstream's three components.
+  :data:`sys.version`, :func:`platform.python_version` and the output of
+  ``python -V`` now report ``3.10.22``, and
+  :func:`platform.python_version_tuple` returns ``('3', '10', '22')``.
+  Releases 3.10.22.1 to 3.10.22.3 reported four components, and code that
+  unpacks the version into ``(major, minor, patchlevel)`` failed: for example,
+  importing ``prometheus_client`` (and so ``jupyter_server`` and
+  ``nbclassic``) raised ``ValueError: too many values to unpack``.
+* The ActiveState release is reported in the build information instead.
+  :data:`sys.version` and ``python -VV`` read
+  ``3.10.22 (ActiveState 3.10.22.4, <date>, <time>) [<compiler>]``, and
+  :func:`platform.python_build` returns ``('ActiveState 3.10.22.4', <date>)``.
+  On Windows, the file and product version strings of the executables and
+  DLLs still read ``3.10.22.4``.  C code can use the new
+  ``PY_ACTIVESTATE_VERSION`` macro from :file:`patchlevel.h`.

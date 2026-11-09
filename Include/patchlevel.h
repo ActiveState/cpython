@@ -31,7 +31,7 @@
    platform.python_version_tuple() into (major, minor, patchlevel); the
    release is reported in the build information instead (sys.version,
    platform.python_build()) and in the Windows file version strings. */
-#define PY_ACTIVESTATE_VERSION  "3.10.22.3"
+#define PY_ACTIVESTATE_VERSION  "3.10.22.4"
 
 /* Version as a single 4-byte hex number, e.g. 0x010502B2 == 1.5.2b2.
    Use this for numeric comparisons, e.g. #if PY_VERSION_HEX >= ... */
