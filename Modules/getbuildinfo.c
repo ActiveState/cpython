@@ -34,18 +34,22 @@
 const char *
 Py_GetBuildInfo(void)
 {
-    static char buildinfo[50 + sizeof(GITVERSION) +
+    static char buildinfo[50 + sizeof("ActiveState ") +
+                          sizeof(PY_ACTIVESTATE_VERSION) + sizeof(GITVERSION) +
                           ((sizeof(GITTAG) > sizeof(GITBRANCH)) ?
                            sizeof(GITTAG) : sizeof(GITBRANCH))];
     const char *revision = _Py_gitversion();
     const char *sep = *revision ? ":" : "";
     const char *gitid = _Py_gitidentifier();
-    if (!(*gitid)) {
+    if (!(*gitid) && *revision) {
         gitid = "main";
     }
+    /* The ActiveState release leads the build number field, which has no
+       commas: platform._sys_version() parses at most three fields here. */
     PyOS_snprintf(buildinfo, sizeof(buildinfo),
-                  "%s%s%s, %.20s, %.9s", gitid, sep, revision,
-                  DATE, TIME);
+                  "ActiveState %s%s%s%s%s, %.20s, %.9s",
+                  PY_ACTIVESTATE_VERSION, *gitid ? " " : "", gitid,
+                  sep, revision, DATE, TIME);
     return buildinfo;
 }
 

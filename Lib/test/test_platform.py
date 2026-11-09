@@ -204,6 +204,20 @@ class PlatformTest(unittest.TestCase):
             self.assertEqual(platform.python_build(), info[4])
             self.assertEqual(platform.python_compiler(), info[5])
 
+    def test_running_version_has_three_components(self):
+        # The ActiveState release number (3.10.22.N) is carried in the build
+        # information, not in the version string: third-party code unpacks
+        # python_version_tuple() and sys.version into (major, minor, patch).
+        self.clear_caches()
+        expected = '%d.%d.%d' % sys.version_info[:3]
+        self.assertEqual(sys.version.split()[0], expected)
+        self.assertEqual(platform.python_version(), expected)
+        major, minor, patchlevel = platform.python_version_tuple()
+        self.assertEqual('.'.join((major, minor, patchlevel)), expected)
+        self.assertTrue(
+            platform.python_build()[0].startswith('ActiveState %s.' % expected),
+            platform.python_build())
+
     def test_system_alias(self):
         res = platform.system_alias(
             platform.system(),

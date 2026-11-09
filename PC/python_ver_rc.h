@@ -17,9 +17,10 @@
 #endif
 
 /* e.g., 3.3.0a1
- * PY_VERSION comes from patchlevel.h
+ * PY_ACTIVESTATE_VERSION comes from patchlevel.h: the file version strings
+ * name the ActiveState release (3.10.22.N), not just PY_VERSION.
  */
-#define PYTHON_VERSION PY_VERSION "\0"
+#define PYTHON_VERSION PY_ACTIVESTATE_VERSION "\0"
 
 /* 64-bit version number as comma-separated list of 4 16-bit ints */
 #if PY_MICRO_VERSION > 64
