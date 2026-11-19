@@ -158,7 +158,8 @@ def getaddresses(fieldvalues, strict=True):
     # Safe output: [('', '')]
 
     if not strict:
-        all = COMMASPACE.join(str(v) for v in fieldvalues)
+        all = COMMASPACE.join(v if isinstance(v, basestring) else str(v)
+                              for v in fieldvalues)
         a = _AddressList(all)
         return a.addresslist
 
@@ -191,29 +192,25 @@ def getaddresses(fieldvalues, strict=True):
     if len(result) != n:
         return [('', '')]
 
-    final_result = []
-    result_idx = 0
+    # Stock Python 2 joins the field values, so one unicode value makes
+    # every parsed address unicode.  The values were encoded to UTF-8 above;
+    # decode all of the results back, not only the first address of each
+    # unicode value (a single value may hold several addresses).
+    if any(unicode_flags):
+        result = [(_decode_utf8(realname), _decode_utf8(email))
+                  for realname, email in result]
+    return result
 
-    for i, was_unicode in enumerate(unicode_flags):
-        if result_idx >= len(result):
-            break
 
-        realname, email = result[result_idx]
-
-        if was_unicode:
-            if realname:
-                realname = realname.decode('utf-8')
-            if email:
-                email = email.decode('utf-8')
-
-        final_result.append((realname, email))
-        result_idx += 1
-
-    while result_idx < len(result):
-        final_result.append(result[result_idx])
-        result_idx += 1
-
-    return final_result
+def _decode_utf8(s):
+    # Values given as str may hold bytes that are not UTF-8; leave those as
+    # they are rather than raising.
+    if not s or isinstance(s, unicode):
+        return s
+    try:
+        return s.decode('utf-8')
+    except UnicodeDecodeError:
+        return s
 
 
 def _check_parenthesis(addr):
@@ -390,11 +387,7 @@ def parseaddr(addr, strict=True):
 
     if is_unicode:
         realname, email = result
-        if realname:
-            realname = realname.decode('utf-8')
-        if email:
-            email = email.decode('utf-8')
-        return (realname, email)
+        return (_decode_utf8(realname), _decode_utf8(email))
 
     return result
 

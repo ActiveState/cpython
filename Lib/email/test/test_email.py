@@ -2495,6 +2495,32 @@ Foo
                 if email:
                     self.assertIsInstance(email, unicode)
 
+    def test_getaddresses_unicode_several_in_one_value(self):
+        # One unicode value can hold several addresses; every one of them
+        # comes back unicode, as with stock Python 2.
+        result = Utils.getaddresses([u'a@example.com, J\xfcrgen <j@example.com>'])
+        self.assertEqual(result, [('', u'a@example.com'),
+                                  (u'J\xfcrgen', u'j@example.com')])
+        for realname, email in result:
+            self.assertIsInstance(email, unicode)
+        self.assertIsInstance(result[1][0], unicode)
+
+    def test_getaddresses_unicode_mixed_with_str(self):
+        result = Utils.getaddresses(['a@example.com', u'b@example.com'])
+        self.assertEqual(result, [('', u'a@example.com'), ('', u'b@example.com')])
+        for realname, email in result:
+            self.assertIsInstance(email, unicode)
+
+    def test_parseaddr_unicode_non_ascii(self):
+        result = Utils.parseaddr(u'J\xfcrgen <j@example.com>')
+        self.assertEqual(result, (u'J\xfcrgen', u'j@example.com'))
+        self.assertIsInstance(result[0], unicode)
+        self.assertIsInstance(result[1], unicode)
+
+    def test_getaddresses_non_strict_non_ascii_unicode(self):
+        result = Utils.getaddresses([u'J\xfcrgen <j@example.com>'], strict=False)
+        self.assertEqual(result, [(u'J\xfcrgen', u'j@example.com')])
+
     def test_make_msgid_collisions(self):
         # Test make_msgid uniqueness, even with multiple threads
         class MsgidsThread(Thread):
