@@ -2348,16 +2348,19 @@ class TestMiscellaneous(TestEmailBase):
 
     def test_parseaddr_unicode(self):
         """Test parseaddr with unicode strings"""
-
         test_cases = [
-            u'user@example.com',
-            u'Test User <user@example.com>',
-            u'"Test User" <user@example.com>',
+            (u'user@example.com', ('', u'user@example.com')),
+            (u'Test User <user@example.com>', (u'Test User', u'user@example.com')),
+            (u'"Test User" <user@example.com>', (u'Test User', u'user@example.com')),
         ]
         
-        for addr in test_cases:
+        for addr, expected in test_cases:
             result = Utils.parseaddr(addr, strict=True)
-            self.assertNotEqual(result, ('', ''))
+            self.assertEqual(result, expected)
+            if result[0]:
+                self.assertIsInstance(result[0], unicode)
+            if result[1]:
+                self.assertIsInstance(result[1], unicode)
             
             result_non_strict = Utils.parseaddr(addr, strict=False)
             self.assertEqual(result, result_non_strict)
@@ -2475,18 +2478,48 @@ Foo
         eq(addrs[0][1], 'foo@bar.com')
 
     def test_getaddresses_unicode(self):
-        """Test getaddresses with unicode strings in Python 2"""
-
+        """Test getaddresses with unicode strings"""
         test_cases = [
-            ([u'user@example.com'], [('', 'user@example.com')]),
-            ([u'Test User <user@example.com>'], [('Test User', 'user@example.com')]),
-            ([u'"Test User" <user@example.com>'], [('Test User', 'user@example.com')]),
-            ([u'user1@example.com', u'user2@example.com'], [('', 'user1@example.com'), ('', 'user2@example.com')]),
+            ([u'user@example.com'], [('', u'user@example.com')]),
+            ([u'Test User <user@example.com>'], [(u'Test User', u'user@example.com')]),
+            ([u'"Test User" <user@example.com>'], [(u'Test User', u'user@example.com')]),
+            ([u'user1@example.com', u'user2@example.com'], [('', u'user1@example.com'), ('', u'user2@example.com')]),
         ]
         
         for addrs, expected in test_cases:
             result = Utils.getaddresses(addrs)
             self.assertEqual(result, expected)
+            for realname, email in result:
+                if realname:
+                    self.assertIsInstance(realname, unicode)
+                if email:
+                    self.assertIsInstance(email, unicode)
+
+    def test_getaddresses_unicode_several_in_one_value(self):
+        # One unicode value can hold several addresses; every one of them
+        # comes back unicode, as with stock Python 2.
+        result = Utils.getaddresses([u'a@example.com, J\xfcrgen <j@example.com>'])
+        self.assertEqual(result, [('', u'a@example.com'),
+                                  (u'J\xfcrgen', u'j@example.com')])
+        for realname, email in result:
+            self.assertIsInstance(email, unicode)
+        self.assertIsInstance(result[1][0], unicode)
+
+    def test_getaddresses_unicode_mixed_with_str(self):
+        result = Utils.getaddresses(['a@example.com', u'b@example.com'])
+        self.assertEqual(result, [('', u'a@example.com'), ('', u'b@example.com')])
+        for realname, email in result:
+            self.assertIsInstance(email, unicode)
+
+    def test_parseaddr_unicode_non_ascii(self):
+        result = Utils.parseaddr(u'J\xfcrgen <j@example.com>')
+        self.assertEqual(result, (u'J\xfcrgen', u'j@example.com'))
+        self.assertIsInstance(result[0], unicode)
+        self.assertIsInstance(result[1], unicode)
+
+    def test_getaddresses_non_strict_non_ascii_unicode(self):
+        result = Utils.getaddresses([u'J\xfcrgen <j@example.com>'], strict=False)
+        self.assertEqual(result, [(u'J\xfcrgen', u'j@example.com')])
 
     def test_make_msgid_collisions(self):
         # Test make_msgid uniqueness, even with multiple threads

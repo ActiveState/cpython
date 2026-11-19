@@ -158,20 +158,24 @@ def getaddresses(fieldvalues, strict=True):
     # Safe output: [('', '')]
 
     if not strict:
-        all = COMMASPACE.join(str(v) for v in fieldvalues)
+        all = COMMASPACE.join(v if isinstance(v, basestring) else str(v)
+                              for v in fieldvalues)
         a = _AddressList(all)
         return a.addresslist
 
+    unicode_flags = []
     converted_values = []
     for v in fieldvalues:
-        if isinstance(v, unicode):
+        is_unicode = isinstance(v, unicode)
+        unicode_flags.append(is_unicode)
+
+        if is_unicode:
             v = v.encode('utf-8')
         elif not isinstance(v, str):
             v = str(v)
         converted_values.append(v)
     
-    fieldvalues = converted_values
-    fieldvalues = _pre_parse_validation(fieldvalues)
+    fieldvalues = _pre_parse_validation(converted_values)
     addr = COMMASPACE.join(fieldvalues)
     a = _AddressList(addr)
     result = _post_parse_validation(a.addresslist)
@@ -188,7 +192,25 @@ def getaddresses(fieldvalues, strict=True):
     if len(result) != n:
         return [('', '')]
 
+    # Stock Python 2 joins the field values, so one unicode value makes
+    # every parsed address unicode.  The values were encoded to UTF-8 above;
+    # decode all of the results back, not only the first address of each
+    # unicode value (a single value may hold several addresses).
+    if any(unicode_flags):
+        result = [(_decode_utf8(realname), _decode_utf8(email))
+                  for realname, email in result]
     return result
+
+
+def _decode_utf8(s):
+    # Values given as str may hold bytes that are not UTF-8; leave those as
+    # they are rather than raising.
+    if not s or isinstance(s, unicode):
+        return s
+    try:
+        return s.decode('utf-8')
+    except UnicodeDecodeError:
+        return s
 
 
 def _check_parenthesis(addr):
@@ -347,12 +369,12 @@ def parseaddr(addr, strict=True):
     if isinstance(addr, list):
         addr = addr[0]
 
-    # FIX: Support both str and unicode in Python 2
+    is_unicode = isinstance(addr, unicode)
+
     if not isinstance(addr, (str, unicode)):
         return ('', '')
 
-    # Convert unicode to str for consistent processing
-    if isinstance(addr, unicode):
+    if is_unicode:
         addr = addr.encode('utf-8')
 
     addr = _pre_parse_validation([addr])[0]
@@ -361,8 +383,13 @@ def parseaddr(addr, strict=True):
     if not addrs or len(addrs) > 1:
         return ('', '')
 
-    return addrs[0]
+    result = addrs[0]
 
+    if is_unicode:
+        realname, email = result
+        return (_decode_utf8(realname), _decode_utf8(email))
+
+    return result
 
 
 # rfc822.unquote() doesn't properly de-backslash-ify in Python pre-2.3.
