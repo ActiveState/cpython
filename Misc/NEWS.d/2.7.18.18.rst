@@ -1,0 +1,12 @@
+.. bpo: 0
+.. date: 2026-11-19
+.. nonce: as0118
+.. release date: 2026-11-19
+.. section: Library
+
+email.utils.parseaddr() and email.utils.getaddresses() return unicode again
+when given unicode input, as 2.7.18.13 and stock Python 2 did.  2.7.18.14 to
+2.7.18.17 returned UTF-8 encoded byte strings instead.  Every address parsed
+from a unicode value is now unicode, including when one value holds several
+addresses or is mixed with str values.  getaddresses(strict=False) no longer
+raises UnicodeEncodeError on non-ASCII unicode input.
